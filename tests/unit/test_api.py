@@ -232,25 +232,26 @@ class TestChatEndpoint:
             assert response.status_code == 404
             assert "Unknown agent" in response.json()["detail"]
 
-    def test_chat_cipher_provider_with_system(self, client):
+    @patch('app.main.CipherClient')
+    def test_chat_cipher_provider_with_system(self, mock_cipher_class, client):
         """Test cipher provider with system message."""
         mock_client = Mock()
         mock_client.chat = AsyncMock(return_value="Cipher response")
-        with patch('app.main.CipherClient') as mock_cipher_class:
-            mock_cipher_class.from_env.return_value = mock_client
-            request_data = {
-                "agent": "startup",
-                "input": "Hello",
-                "system": "Be concise",
-                "provider": "cipher"
-            }
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            # Verify system message was added
-            assert mock_client.chat.called
-            # Check that system message was in the call
-            call_args = mock_client.chat.call_args[0][0]  # messages parameter
-            assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in call_args)
+        mock_cipher_class.from_env.return_value = mock_client
+        
+        request_data = {
+            "agent": "startup",
+            "input": "Hello",
+            "system": "Be concise",
+            "provider": "cipher"
+        }
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        # Verify system message was added
+        assert mock_client.chat.called
+        # Check that system message was in the call
+        call_args = mock_client.chat.call_args[0][0]  # messages parameter
+        assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in call_args)
 
     def test_chat_with_system_message(self, client):
         """Test chat with additional system message."""
