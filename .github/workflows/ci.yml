@@ -36,35 +36,58 @@ jobs:
         id: parse_results
         if: always()
         run: |
+          # Initialize defaults
+          PASSED="0"
+          FAILED="0"
+          WARNINGS="0"
+          COVERAGE="0%"
+          
           # Extract test summary from output
           if [ -f test-output.log ]; then
             PASSED=$(grep -oP '\d+(?= passed)' test-output.log | head -1 || echo "0")
             FAILED=$(grep -oP '\d+(?= failed)' test-output.log | head -1 || echo "0")
             WARNINGS=$(grep -oP '\d+(?= warnings)' test-output.log | head -1 || echo "0")
             COVERAGE=$(grep -oP 'TOTAL.*\d+%' test-output.log | grep -oP '\d+\.\d+%' | head -1 || echo "0%")
-            
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
-            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
           fi
+          
+          # Ensure values are set (handle empty strings)
+          PASSED=${PASSED:-"0"}
+          FAILED=${FAILED:-"0"}
+          WARNINGS=${WARNINGS:-"0"}
+          COVERAGE=${COVERAGE:-"0%"}
+          
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
       
       - name: Generate test report
         if: always()
         run: |
+          # Set defaults if outputs are empty
+          PASSED="${{ steps.parse_results.outputs.passed }}"
+          FAILED="${{ steps.parse_results.outputs.failed }}"
+          WARNINGS="${{ steps.parse_results.outputs.warnings }}"
+          COVERAGE="${{ steps.parse_results.outputs.coverage }}"
+          
+          PASSED=${PASSED:-"0"}
+          FAILED=${FAILED:-"0"}
+          WARNINGS=${WARNINGS:-"0"}
+          COVERAGE=${COVERAGE:-"0%"}
+          
           echo "## ✅ Unit Tests Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Passed | ${{ steps.parse_results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ❌ Failed | ${{ steps.parse_results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⚠️ Warnings | ${{ steps.parse_results.outputs.warnings }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📊 Coverage | ${{ steps.parse_results.outputs.coverage }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚠️ Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Coverage | $COVERAGE |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ steps.parse_results.outputs.failed }}" != "0" ]; then
+          if [ "$FAILED" != "0" ]; then
             echo "### ⚠️ Test Failures Detected" >> $GITHUB_STEP_SUMMARY
             echo "Check the test output above for details." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -143,38 +166,57 @@ jobs:
         id: parse_integration_results
         if: always()
         run: |
+          # Initialize defaults
+          PASSED="0"
+          FAILED="0"
+          SKIPPED="0"
+          
           # Extract test summary from output
           if [ -f test-output.log ]; then
             PASSED=$(grep -oP '\d+(?= passed)' test-output.log | head -1 || echo "0")
             FAILED=$(grep -oP '\d+(?= failed)' test-output.log | head -1 || echo "0")
             SKIPPED=$(grep -oP '\d+(?= skipped)' test-output.log | head -1 || echo "0")
-            
-            echo "passed=$PASSED" >> $GITHUB_OUTPUT
-            echo "failed=$FAILED" >> $GITHUB_OUTPUT
-            echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
           fi
+          
+          # Ensure values are set (handle empty strings)
+          PASSED=${PASSED:-"0"}
+          FAILED=${FAILED:-"0"}
+          SKIPPED=${SKIPPED:-"0"}
+          
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
       
       - name: Generate integration test report
         if: always()
         run: |
+          # Set defaults if outputs are empty
+          PASSED="${{ steps.parse_integration_results.outputs.passed }}"
+          FAILED="${{ steps.parse_integration_results.outputs.failed }}"
+          SKIPPED="${{ steps.parse_integration_results.outputs.skipped }}"
+          
+          PASSED=${PASSED:-"0"}
+          FAILED=${FAILED:-"0"}
+          SKIPPED=${SKIPPED:-"0"}
+          
           echo "## 🔗 Integration Tests Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Passed | ${{ steps.parse_integration_results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ❌ Failed | ${{ steps.parse_integration_results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏭️ Skipped | ${{ steps.parse_integration_results.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ steps.parse_integration_results.outputs.failed }}" != "0" ]; then
+          if [ "$FAILED" != "0" ]; then
             echo "### ⚠️ Integration Test Failures" >> $GITHUB_STEP_SUMMARY
             echo "Some integration tests failed. This may be expected if API keys are not configured." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ "${{ steps.parse_integration_results.outputs.skipped }}" != "0" ]; then
+          if [ "$SKIPPED" != "0" ]; then
             echo "### ℹ️ Skipped Tests" >> $GITHUB_STEP_SUMMARY
             echo "Some tests were skipped, likely due to missing API keys or external service dependencies." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
