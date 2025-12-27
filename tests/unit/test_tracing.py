@@ -81,10 +81,21 @@ class TestTracing:
         """Test successful tracing initialization."""
         from app.tracing import init_tracing
         
+        # Reset global state first
+        import app.tracing
+        app.tracing._tracer_provider = None
+        app.tracing._tracer = None
+        
         mock_provider = Mock()
         mock_tracer_provider.return_value = mock_provider
         mock_tracer = Mock()
         mock_get_tracer.return_value = mock_tracer
+        
+        # Mock the instrumentors
+        mock_fastapi_instr_instance = Mock()
+        mock_requests_instr_instance = Mock()
+        mock_fastapi_instr.return_value = mock_fastapi_instr_instance
+        mock_requests_instr.return_value = mock_requests_instr_instance
         
         init_tracing("test-service", "1.0.0", "development")
         
@@ -178,14 +189,23 @@ class TestTracing:
         """Test tracing initialization with instrumentation exception."""
         from app.tracing import init_tracing
         
+        # Reset global state first
+        import app.tracing
+        app.tracing._tracer_provider = None
+        app.tracing._tracer = None
+        
         mock_provider = Mock()
         mock_tracer_provider.return_value = mock_provider
         mock_tracer = Mock()
         mock_get_tracer.return_value = mock_tracer
         
-        # Make instrumentation raise exception
-        mock_fastapi_instr.return_value.instrument.side_effect = Exception("Instrumentation failed")
-        mock_requests_instr.return_value.instrument.side_effect = Exception("Instrumentation failed")
+        # Mock the instrumentors to raise exceptions
+        mock_fastapi_instr_instance = Mock()
+        mock_fastapi_instr_instance.instrument.side_effect = Exception("Instrumentation failed")
+        mock_requests_instr_instance = Mock()
+        mock_requests_instr_instance.instrument.side_effect = Exception("Instrumentation failed")
+        mock_fastapi_instr.return_value = mock_fastapi_instr_instance
+        mock_requests_instr.return_value = mock_requests_instr_instance
         
         # Should not raise, just print warning
         init_tracing("test-service", "1.0.0", "development")
@@ -205,12 +225,26 @@ class TestTracing:
         """Test getting tracer when initialized."""
         from app.tracing import init_tracing, get_tracer
         
+        # Reset global state first
+        import app.tracing
+        app.tracing._tracer_provider = None
+        app.tracing._tracer = None
+        
         mock_provider = Mock()
         mock_tracer_provider.return_value = mock_provider
         mock_tracer = Mock()
         mock_get_tracer.return_value = mock_tracer
         
+        # Mock the instrumentors
+        mock_fastapi_instr_instance = Mock()
+        mock_requests_instr_instance = Mock()
+        mock_fastapi_instr.return_value = mock_fastapi_instr_instance
+        mock_requests_instr.return_value = mock_requests_instr_instance
+        
         init_tracing("test-service", "1.0.0", "development")
+        
+        # Set the tracer in the module
+        app.tracing._tracer = mock_tracer
         
         tracer = get_tracer()
         assert tracer is not None

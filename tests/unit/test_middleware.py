@@ -86,7 +86,7 @@ class TestRequestLoggerMiddleware:
         def error_endpoint():
             raise Exception("Test error")
         
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         with patch('app.middleware.logger') as mock_logger:
             response = client.get("/error")
             assert response.status_code == 500

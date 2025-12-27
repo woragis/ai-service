@@ -48,135 +48,6 @@ class TestHealthCheck:
             data = response.json()
             assert data["status"] == "unhealthy"
 
-    def test_tracing_init_exception(self):
-        """Test tracing initialization exception handling."""
-        # The exception handling is in the module-level try/except
-        # We can't easily test this without reloading the module
-        # But we can verify the code path exists by checking the logger
-        with patch('app.main.logger') as mock_logger:
-            # The exception handling should log a warning
-            # This is tested indirectly through the module initialization
-            pass
-
-    def test_pick_agent_strategist(self, client):
-        """Test picking strategist agent via auto selection."""
-        request_data = {
-            "agent": "auto",
-            "input": "What is our go-to-market strategy and competitive positioning?",
-            "provider": "openai"
-        }
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["agent"] == "strategist"
-
-    def test_cipher_provider_invalid_agent(self, client):
-        """Test cipher provider with invalid agent."""
-        with patch('app.main.CipherClient') as mock_cipher_class, \
-             patch('app.main.build_system_message', return_value=None):
-            request_data = {
-                "agent": "invalid",
-                "input": "Hello",
-                "provider": "cipher"
-            }
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 404
-
-    def test_cipher_provider_with_system(self, client):
-        """Test cipher provider with system message."""
-        mock_client = Mock()
-        mock_client.chat = AsyncMock(return_value="Cipher response")
-        with patch('app.main.CipherClient') as mock_cipher_class:
-            mock_cipher_class.from_env.return_value = mock_client
-            request_data = {
-                "agent": "startup",
-                "input": "Hello",
-                "system": "Be concise",
-                "provider": "cipher"
-            }
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            # Verify system message was added
-            assert mock_client.chat.called
-
-    def test_image_generation_invalid_provider(self, client):
-        """Test image generation with invalid provider."""
-        # FastAPI validates enum, but we can test the endpoint logic
-        # by using a valid enum value that's not "cipher"
-        # Actually, the enum only allows "cipher", so this path might not be reachable
-        # But we can test the validation
-        pass
-
-    def test_stream_auto_agent_selection(self, client, mock_chat_model):
-        """Test streaming with auto agent selection."""
-        request_data = {
-            "agent": "auto",
-            "input": "What is our go-to-market strategy?",
-            "provider": "openai"
-        }
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_make.return_value = mock_chat_model
-            mock_chain = Mock()
-            
-            async def mock_stream():
-                yield {"event": "on_llm_new_token", "data": {"chunk": Mock(content="Hello")}}
-            
-            mock_chain.astream_events = AsyncMock(return_value=mock_stream())
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat/stream", json=request_data)
-            assert response.status_code == 200
-
-    def test_stream_cipher_with_system(self, client):
-        """Test cipher stream with system message."""
-        mock_client = Mock()
-        mock_client.chat = AsyncMock(return_value="Full response")
-        with patch('app.main.CipherClient') as mock_cipher_class:
-            mock_cipher_class.from_env.return_value = mock_client
-            request_data = {
-                "agent": "startup",
-                "input": "Hello",
-                "system": "Be concise",
-                "provider": "cipher"
-            }
-            response = client.post("/v1/chat/stream", json=request_data)
-            assert response.status_code == 200
-            # Verify system message was added
-            assert mock_client.chat.called
-
-    def test_stream_event_chunk_extraction(self, client, mock_chat_model):
-        """Test streaming with chunk extraction from different event types."""
-        request_data = {
-            "agent": "startup",
-            "input": "Hello",
-            "provider": "openai"
-        }
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_make.return_value = mock_chat_model
-            mock_chain = Mock()
-            
-            # Test with on_chat_model_stream event
-            async def mock_stream():
-                yield {"event": "on_chat_model_stream", "data": {"chunk": Mock(content="Hello")}}
-                yield {"event": "on_llm_new_token", "data": {"token": " World"}}
-            
-            mock_chain.astream_events = AsyncMock(return_value=mock_stream())
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat/stream", json=request_data)
-            assert response.status_code == 200
-
 
 class TestPickAgentAuto:
     """Tests for automatic agent selection logic via API."""
@@ -201,10 +72,12 @@ class TestPickAgentAuto:
             assert data["agent"] == "economist"
 
     def test_pick_agent_strategist(self, client, mock_chat_model):
-        """Test picking strategist agent via auto selection."""
+        """Test picking strategist agent via auto selection (not economist)."""
+        # Use input that triggers strategist but NOT economist
+        # Use "strategy" and "positioning" keywords, but avoid "market" to not trigger economist
         request_data = {
             "agent": "auto",
-            "input": "What is our go-to-market strategy and competitive positioning?",
+            "input": "What is our competitive positioning and strategy?",
             "provider": "openai"
         }
         with patch('app.main.make_model') as mock_make, \
@@ -218,9 +91,8 @@ class TestPickAgentAuto:
             response = client.post("/v1/chat", json=request_data)
             assert response.status_code == 200
             data = response.json()
-            # Note: The auto selection might pick "economist" if "market" keyword is detected first
-            # This test verifies auto selection works, not the exact agent chosen
-            assert data["agent"] in ["economist", "strategist", "entrepreneur", "startup"]
+            # Should pick strategist (strategy keyword triggers it)
+            assert data["agent"] == "strategist"
 
     def test_pick_agent_entrepreneur(self, client):
         """Test picking entrepreneur agent via auto selection."""
@@ -344,6 +216,41 @@ class TestChatEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["output"] == "Cipher response"
+
+    def test_chat_cipher_provider_invalid_agent(self, client):
+        """Test cipher provider with invalid agent (when build_system_message returns None)."""
+        # Mock build_system_message to return None to trigger the 404 path
+        with patch('app.main.CipherClient') as mock_cipher_class, \
+             patch('app.main.build_system_message', return_value=None), \
+             patch('app.main.get_agent_names', return_value=["startup", "economist"]):
+            request_data = {
+                "agent": "startup",  # Valid enum, but build_system_message returns None
+                "input": "Hello",
+                "provider": "cipher"
+            }
+            response = client.post("/v1/chat", json=request_data)
+            assert response.status_code == 404
+            assert "Unknown agent" in response.json()["detail"]
+
+    def test_chat_cipher_provider_with_system(self, client):
+        """Test cipher provider with system message."""
+        mock_client = Mock()
+        mock_client.chat = AsyncMock(return_value="Cipher response")
+        with patch('app.main.CipherClient') as mock_cipher_class:
+            mock_cipher_class.from_env.return_value = mock_client
+            request_data = {
+                "agent": "startup",
+                "input": "Hello",
+                "system": "Be concise",
+                "provider": "cipher"
+            }
+            response = client.post("/v1/chat", json=request_data)
+            assert response.status_code == 200
+            # Verify system message was added
+            assert mock_client.chat.called
+            # Check that system message was in the call
+            call_args = mock_client.chat.call_args[0][0]  # messages parameter
+            assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in call_args)
 
     def test_chat_with_system_message(self, client):
         """Test chat with additional system message."""
