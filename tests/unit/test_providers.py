@@ -74,6 +74,88 @@ class TestProviderFactory:
             assert model is not None
 
 
+class TestManusProvider:
+    """Tests for Manus provider."""
+
+    @patch('app.providers.manus.ChatOpenAI')
+    @patch('app.providers.manus.settings')
+    def test_make_manus_model_default(self, mock_settings, mock_chat_openai, mock_chat_model):
+        """Test creating Manus model with default parameters."""
+        mock_settings.MANUS_BASE_URL = "https://api.manus.com"
+        mock_settings.MANUS_API_KEY = "test-key"
+        mock_settings.MANUS_MODEL = "manus-chat"
+        mock_settings.DEFAULT_TEMPERATURE = 0.3
+        mock_chat_openai.return_value = mock_chat_model
+        
+        from app.providers.manus import build
+        model = build(None, None)
+        assert model is not None
+        mock_chat_openai.assert_called_once()
+
+    @patch('app.providers.manus.ChatOpenAI')
+    @patch('app.providers.manus.settings')
+    def test_make_manus_model_custom(self, mock_settings, mock_chat_openai, mock_chat_model):
+        """Test creating Manus model with custom parameters."""
+        mock_settings.MANUS_BASE_URL = "https://api.manus.com"
+        mock_settings.MANUS_API_KEY = "test-key"
+        mock_settings.MANUS_MODEL = "manus-chat"
+        mock_settings.DEFAULT_TEMPERATURE = 0.3
+        mock_chat_openai.return_value = mock_chat_model
+        
+        from app.providers.manus import build
+        model = build("custom-model", 0.7)
+        assert model is not None
+
+    @patch('app.providers.manus.settings')
+    def test_make_manus_model_missing_base_url(self, mock_settings):
+        """Test Manus model creation with missing base URL."""
+        from app.providers.manus import build
+        from fastapi import HTTPException
+        
+        mock_settings.MANUS_BASE_URL = ""
+        mock_settings.MANUS_API_KEY = "test-key"
+        
+        with pytest.raises(HTTPException) as exc_info:
+            build(None, None)
+        assert exc_info.value.status_code == 500
+
+
+class TestXAIProvider:
+    """Tests for xAI provider."""
+
+    @patch('app.providers.xai.ChatOpenAI')
+    @patch('app.providers.xai.settings')
+    def test_make_xai_model_default(self, mock_settings, mock_chat_openai, mock_chat_model):
+        """Test creating xAI model with default parameters."""
+        mock_settings.XAI_BASE_URL = "https://api.x.ai/v1"
+        mock_settings.XAI_API_KEY = "test-key"
+        mock_settings.XAI_MODEL = "grok-beta"
+        mock_settings.DEFAULT_TEMPERATURE = 0.3
+        mock_chat_openai.return_value = mock_chat_model
+        
+        from app.providers.xai import build
+        model = build(None, None)
+        assert model is not None
+        mock_chat_openai.assert_called_once()
+
+
+class TestAnthropicProvider:
+    """Tests for Anthropic provider."""
+
+    @patch('app.providers.anthropic.ChatAnthropic')
+    @patch('app.providers.anthropic.settings')
+    def test_make_anthropic_model_default(self, mock_settings, mock_chat_anthropic, mock_chat_model):
+        """Test creating Anthropic model with default parameters."""
+        mock_settings.ANTHROPIC_MODEL = "claude-3-5-sonnet-latest"
+        mock_settings.DEFAULT_TEMPERATURE = 0.3
+        mock_chat_anthropic.return_value = mock_chat_model
+        
+        from app.providers.anthropic import build
+        model = build(None, None)
+        assert model is not None
+        mock_chat_anthropic.assert_called_once()
+
+
 class TestCipherClient:
     """Tests for CipherClient."""
 

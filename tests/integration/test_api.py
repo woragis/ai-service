@@ -144,7 +144,7 @@ class TestAPIIntegration:
             if line.strip():
                 import json
                 data = json.loads(line)
-                assert "agent" in data or "output" in data or "done" in data
+                assert "delta" in data or "agent" in data or "output" in data or "done" in data
 
     def test_chat_stream_endpoint_validation(self, client):
         """Test streaming chat endpoint validation."""
