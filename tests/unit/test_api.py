@@ -249,9 +249,10 @@ class TestChatEndpoint:
         assert response.status_code == 200
         # Verify system message was added
         assert mock_client.chat.called
-        # Check that system message was in the call
-        call_args = mock_client.chat.call_args[0][0]  # messages parameter
-        assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in call_args)
+        # Check that system message was in the call (chat is called with keyword args)
+        call_kwargs = mock_client.chat.call_args.kwargs
+        messages = call_kwargs.get('messages', [])
+        assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in messages)
 
     def test_chat_with_system_message(self, client):
         """Test chat with additional system message."""

@@ -11,7 +11,10 @@ class TestTracing:
 
     def test_get_trace_id_no_context(self):
         """Test getting trace ID when no context exists."""
-        from app.tracing import get_trace_id
+        from app.tracing import get_trace_id, trace_id_var
+        
+        # Clear context variable first
+        trace_id_var.set(None)
         
         # Mock no current span
         with patch('app.tracing.trace.get_current_span', return_value=None):

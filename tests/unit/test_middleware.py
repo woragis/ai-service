@@ -105,13 +105,12 @@ class TestRequestLoggerMiddleware:
         app.add_middleware(RequestLoggerMiddleware)
         
         @app.post("/test")
-        async def test_endpoint(request):
-            # Access request body to ensure it's read
-            await request.body()
+        def test_endpoint():
             return {"status": "ok"}
         
         client = TestClient(app)
         with patch('app.middleware.logger') as mock_logger:
+            # Send POST with body to trigger body size detection
             response = client.post("/test", json={"test": "data"})
             assert response.status_code == 200
             # Should have logged
