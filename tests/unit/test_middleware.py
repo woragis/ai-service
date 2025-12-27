@@ -42,7 +42,7 @@ class TestRequestIDMiddleware:
         def error_endpoint():
             raise Exception("Test error")
         
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         # Should handle exception gracefully
         response = client.get("/error")
         assert response.status_code == 500
@@ -111,4 +111,78 @@ class TestRequestLoggerMiddleware:
             assert response.status_code == 200
             # Should still log
             assert mock_logger.info.called
+
+    def test_request_logger_middleware_with_body(self):
+        """Test middleware with request body."""
+        from app.middleware import RequestLoggerMiddleware
+        
+        app = FastAPI()
+        app.add_middleware(RequestLoggerMiddleware)
+        
+        @app.post("/test")
+        def test_endpoint():
+            return {"status": "ok"}
+        
+        client = TestClient(app)
+        with patch('app.middleware.logger') as mock_logger:
+            response = client.post("/test", json={"test": "data"})
+            assert response.status_code == 200
+            # Should log with body size if _body attribute exists
+            assert mock_logger.info.called
+
+    def test_request_logger_middleware_with_query_params(self):
+        """Test middleware with query parameters."""
+        from app.middleware import RequestLoggerMiddleware
+        
+        app = FastAPI()
+        app.add_middleware(RequestLoggerMiddleware)
+        
+        @app.get("/test")
+        def test_endpoint():
+            return {"status": "ok"}
+        
+        client = TestClient(app)
+        with patch('app.middleware.logger') as mock_logger:
+            response = client.get("/test?param1=value1&param2=value2")
+            assert response.status_code == 200
+            # Should log with query parameters
+            assert mock_logger.info.called
+
+    def test_request_logger_middleware_with_trace_id(self):
+        """Test middleware with trace ID in context."""
+        from app.middleware import RequestLoggerMiddleware
+        from app.logger import set_trace_id
+        
+        app = FastAPI()
+        app.add_middleware(RequestLoggerMiddleware)
+        
+        @app.get("/test")
+        def test_endpoint():
+            return {"status": "ok"}
+        
+        client = TestClient(app)
+        set_trace_id("test-trace-123")
+        with patch('app.middleware.logger') as mock_logger:
+            response = client.get("/test")
+            assert response.status_code == 200
+            # Should log with trace_id
+            assert mock_logger.info.called
+
+    def test_request_logger_middleware_500_error(self):
+        """Test middleware logs 500 errors."""
+        from app.middleware import RequestLoggerMiddleware
+        
+        app = FastAPI()
+        app.add_middleware(RequestLoggerMiddleware)
+        
+        @app.get("/error")
+        def error_endpoint():
+            raise Exception("Server error")
+        
+        client = TestClient(app, raise_server_exceptions=False)
+        with patch('app.middleware.logger') as mock_logger:
+            response = client.get("/error")
+            assert response.status_code == 500
+            # Should log error for 500
+            assert mock_logger.error.called
 

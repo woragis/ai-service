@@ -75,7 +75,10 @@ class TestLogger:
 
     def test_set_trace_id(self):
         """Test setting trace ID."""
-        from app.logger import set_trace_id, get_trace_id
+        from app.logger import set_trace_id, get_trace_id, trace_id_var
+        
+        # Clear any existing trace ID first
+        trace_id_var.set(None)
         
         set_trace_id("test-trace-456")
         result = get_trace_id()
@@ -83,7 +86,10 @@ class TestLogger:
 
     def test_get_trace_id(self):
         """Test getting trace ID."""
-        from app.logger import get_trace_id, set_trace_id
+        from app.logger import get_trace_id, set_trace_id, trace_id_var
+        
+        # Clear any existing trace ID first
+        trace_id_var.set(None)
         
         # Initially should be None
         result = get_trace_id()
@@ -93,13 +99,17 @@ class TestLogger:
         set_trace_id("test-trace-789")
         result = get_trace_id()
         assert result == "test-trace-789"
+        
+        # Clear again
+        trace_id_var.set(None)
+        result = get_trace_id()
+        assert result is None
 
     def test_get_trace_id_not_set(self):
         """Test getting trace ID when not set."""
-        from app.logger import get_trace_id
+        from app.logger import get_trace_id, trace_id_var
         
         # Clear any existing trace ID
-        from app.logger import trace_id_var
         trace_id_var.set(None)
         
         result = get_trace_id()

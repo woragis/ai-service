@@ -144,3 +144,75 @@ class TestTracing:
         mock_provider.shutdown.assert_called_once()
         assert app.tracing._tracer_provider is None
 
+    @patch('app.tracing.OTLPSpanExporter')
+    @patch('app.tracing.TracerProvider')
+    @patch('app.tracing.trace.set_tracer_provider')
+    @patch('app.tracing.trace.get_tracer')
+    @patch('app.tracing.FastAPIInstrumentor')
+    @patch('app.tracing.RequestsInstrumentor')
+    def test_init_tracing_production(self, mock_requests_instr, mock_fastapi_instr,
+                                      mock_get_tracer, mock_set_provider,
+                                      mock_tracer_provider, mock_exporter):
+        """Test tracing initialization with production environment."""
+        from app.tracing import init_tracing
+        
+        mock_provider = Mock()
+        mock_tracer_provider.return_value = mock_provider
+        mock_tracer = Mock()
+        mock_get_tracer.return_value = mock_tracer
+        
+        init_tracing("test-service", "1.0.0", "production")
+        
+        # Should set sampling rate to 0.1 for production
+        mock_tracer_provider.assert_called_once()
+
+    @patch('app.tracing.OTLPSpanExporter')
+    @patch('app.tracing.TracerProvider')
+    @patch('app.tracing.trace.set_tracer_provider')
+    @patch('app.tracing.trace.get_tracer')
+    @patch('app.tracing.FastAPIInstrumentor')
+    @patch('app.tracing.RequestsInstrumentor')
+    def test_init_tracing_instrumentation_exception(self, mock_requests_instr, mock_fastapi_instr,
+                                                     mock_get_tracer, mock_set_provider,
+                                                     mock_tracer_provider, mock_exporter):
+        """Test tracing initialization with instrumentation exception."""
+        from app.tracing import init_tracing
+        
+        mock_provider = Mock()
+        mock_tracer_provider.return_value = mock_provider
+        mock_tracer = Mock()
+        mock_get_tracer.return_value = mock_tracer
+        
+        # Make instrumentation raise exception
+        mock_fastapi_instr.return_value.instrument.side_effect = Exception("Instrumentation failed")
+        mock_requests_instr.return_value.instrument.side_effect = Exception("Instrumentation failed")
+        
+        # Should not raise, just print warning
+        init_tracing("test-service", "1.0.0", "development")
+        
+        # Should still initialize
+        mock_tracer_provider.assert_called_once()
+
+    @patch('app.tracing.OTLPSpanExporter')
+    @patch('app.tracing.TracerProvider')
+    @patch('app.tracing.trace.set_tracer_provider')
+    @patch('app.tracing.trace.get_tracer')
+    @patch('app.tracing.FastAPIInstrumentor')
+    @patch('app.tracing.RequestsInstrumentor')
+    def test_get_tracer_initialized(self, mock_requests_instr, mock_fastapi_instr,
+                                     mock_get_tracer, mock_set_provider,
+                                     mock_tracer_provider, mock_exporter):
+        """Test getting tracer when initialized."""
+        from app.tracing import init_tracing, get_tracer
+        
+        mock_provider = Mock()
+        mock_tracer_provider.return_value = mock_provider
+        mock_tracer = Mock()
+        mock_get_tracer.return_value = mock_tracer
+        
+        init_tracing("test-service", "1.0.0", "development")
+        
+        tracer = get_tracer()
+        assert tracer is not None
+        assert tracer == mock_tracer
+

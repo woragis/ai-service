@@ -276,3 +276,20 @@ class TestCipherClient:
             )
             assert len(result) == 1
             assert "url" in result[0]
+
+
+class TestOpenAIProvider:
+    """Tests for OpenAI provider."""
+
+    @patch('app.providers.openai.ChatOpenAI')
+    @patch('app.providers.openai.settings')
+    def test_make_openai_model_default(self, mock_settings, mock_chat_openai, mock_chat_model):
+        """Test creating OpenAI model with default parameters."""
+        mock_settings.OPENAI_MODEL = "gpt-4o-mini"
+        mock_settings.DEFAULT_TEMPERATURE = 0.3
+        mock_chat_openai.return_value = mock_chat_model
+        
+        from app.providers.openai import build
+        model = build(None, None)
+        assert model is not None
+        mock_chat_openai.assert_called_once()
