@@ -16,6 +16,7 @@ from app.providers import make_model, CipherClient
 from app.config import settings
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
+from app.middleware_slo import SLOTrackingMiddleware
 from app.tracing import init_tracing, get_trace_id, set_trace_id
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -44,9 +45,10 @@ except Exception as e:
 
 app = FastAPI(title="Woragis AI Service", version="0.1.0")
 
-# Add middleware for request ID and logging
+# Add middleware for request ID, logging, and SLO tracking
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RequestLoggerMiddleware)
+app.add_middleware(SLOTrackingMiddleware)
 
 # Add Prometheus metrics instrumentation
 Instrumentator().instrument(app).expose(app)
