@@ -15,7 +15,14 @@ from app.agents import get_agent_names, get_agent, build_agent_with_model, build
 from app.providers import make_model, CipherClient
 from app.routing import select_provider_and_model, execute_with_fallback
 from app.config import settings
-from app.cost_tracking import cost_tracker
+from app.cost_tracking import cost_tracker, estimate_request_cost
+from app.cost_control import (
+    validate_token_limits,
+    estimate_and_check_cost,
+    get_budget_tracker,
+    get_token_limits,
+    get_cost_routing_config,
+)
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -120,6 +127,45 @@ def reload_agents():
     return {"status": "success", "message": "Agent policies reloaded", "agents": get_agent_names()}
 
 
+@app.get("/v1/cost/budget")
+def get_budget_status():
+    """Get current budget spending and limits."""
+    budget_tracker = get_budget_tracker()
+    spending = budget_tracker.get_current_spending()
+    limits = budget_tracker.get_budget_limits()
+    
+    return {
+        "spending": spending,
+        "limits": limits,
+        "remaining": {
+            "daily": max(0, limits["daily_limit_usd"] - spending["daily"]),
+            "monthly": max(0, limits["monthly_limit_usd"] - spending["monthly"]),
+        }
+    }
+
+
+@app.get("/v1/cost/token-limits")
+def get_token_limits_endpoint():
+    """Get current token limits configuration."""
+    return get_token_limits()
+
+
+@app.get("/v1/cost/routing-config")
+def get_cost_routing_config_endpoint():
+    """Get current cost routing configuration."""
+    return get_cost_routing_config()
+
+
+@app.post("/v1/cost/reload")
+def reload_cost_control():
+    """Reload cost control policies (hot reload)."""
+    from app.cost_control.policy import get_cost_control_policy_loader
+    policy_loader = get_cost_control_policy_loader()
+    policy_loader.reload()
+    logger.info("Cost control policies reloaded")
+    return {"status": "success", "message": "Cost control policies reloaded"}
+
+
 @app.post("/v1/routing/reload")
 def reload_routing():
     """Reload routing policies (hot reload)."""
@@ -182,6 +228,20 @@ async def chat(req: ChatRequest):
     # Get RAG context if enabled for this agent
     rag_context = await get_rag_context(agent_name, req.input)
 
+    # Estimate input tokens (simple approximation: ~4 chars per token)
+    input_text = req.input
+    if req.system:
+        input_text = f"{req.system}\n\n{req.input}"
+    if rag_context:
+        input_text = f"{rag_context}\n\n{req.input}"
+    
+    estimated_input_tokens = len(input_text) // 4  # Rough estimate
+    
+    # Validate token limits before processing
+    token_valid, token_error = validate_token_limits(estimated_input_tokens)
+    if not token_valid:
+        raise HTTPException(status_code=400, detail=token_error)
+
     # Select provider and model using routing policies
     cost_mode = os.getenv("COST_MODE", "balanced")  # Can be overridden per request in future
     selected_provider, selected_model, fallback_chain = select_provider_and_model(
@@ -195,6 +255,17 @@ async def chat(req: ChatRequest):
     
     provider = selected_provider
     model = selected_model or req.model
+    
+    # Estimate cost and check budget before processing
+    estimated_cost, budget_allowed, budget_error = estimate_and_check_cost(
+        provider=provider,
+        model=model or "default",
+        input_tokens=estimated_input_tokens,
+        output_tokens=0  # Will be updated after response
+    )
+    
+    if not budget_allowed:
+        raise HTTPException(status_code=429, detail=budget_error)
 
     # Cipher provider: call external API directly (query string API key, OpenAI-like JSON)
     if provider == "cipher":
@@ -267,15 +338,24 @@ async def chat(req: ChatRequest):
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
     
-    # Track cost (estimate based on tokens if available)
-    # Note: Actual token counts would come from provider response
+    # Estimate output tokens and final cost
+    estimated_output_tokens = len(output_text) // 4  # Rough estimate
+    final_cost = estimate_request_cost(provider, model or "default", estimated_input_tokens, estimated_output_tokens)
+    
+    # Track cost and tokens
     try:
         cost_tracker.record_request(
             endpoint="/v1/chat",
             provider=provider,
-            cost_usd=0.0  # Would calculate from actual token usage
+            cost_usd=final_cost
         )
-        cost_tracker.record_api_call(provider=provider, model=req.model or "default")
+        cost_tracker.record_api_call(provider=provider, model=model or "default")
+        cost_tracker.record_tokens(
+            provider=provider,
+            model=model or "default",
+            input_tokens=estimated_input_tokens,
+            output_tokens=estimated_output_tokens
+        )
     except Exception as e:
         logger.warn("Failed to record cost metrics", error=str(e))
     

@@ -1,0 +1,21 @@
+version: "1.0.0"
+cost_control:
+  budget:
+    enabled: true
+    daily_limit_usd: 100.0
+    monthly_limit_usd: 3000.0
+    per_request_limit_usd: 1.0
+    reset_hour: 0  # Reset daily budget at midnight (0-23)
+  
+  token_limits:
+    enabled: true
+    max_input_tokens: 100000  # ~75k words
+    max_output_tokens: 4000
+    max_total_tokens: 104000
+  
+  cost_routing:
+    enabled: true
+    prefer_cheaper_models: true
+    cost_threshold_usd: 0.01  # Use cheaper models if estimated cost > threshold
+    quality_threshold: 0.7  # Minimum quality score when using cost-based routing
+
