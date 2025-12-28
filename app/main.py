@@ -149,6 +149,9 @@ async def chat(req: ChatRequest):
 
     agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
 
+    # Get RAG context if enabled for this agent
+    rag_context = await get_rag_context(agent_name, req.input)
+
     # Cipher provider: call external API directly (query string API key, OpenAI-like JSON)
     if provider == "cipher":
         system_text = build_system_message(agent_name)
@@ -158,6 +161,9 @@ async def chat(req: ChatRequest):
         messages = [{"role": "system", "content": system_text}]
         if req.system:
             messages.append({"role": "system", "content": req.system})
+        # Add RAG context if available
+        if rag_context:
+            messages.append({"role": "system", "content": rag_context})
         messages.append({"role": "user", "content": req.input})
 
         client = CipherClient.from_env()
