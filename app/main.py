@@ -31,6 +31,13 @@ from app.security import (
     check_prompt_injection,
     sanitize_response,
 )
+from app.quality import (
+    validate_length,
+    validate_format,
+    validate_quality,
+    check_toxicity,
+    sanitize_toxicity,
+)
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -211,6 +218,44 @@ def reload_security_policies():
     policy_loader.reload()
     logger.info("Security policies reloaded")
     return {"status": "success", "message": "Security policies reloaded"}
+
+
+@app.get("/v1/quality/length-limits")
+def get_quality_length_limits(agent: str = ""):
+    """Get length limits configuration."""
+    from app.quality import get_length_limits
+    return get_length_limits(agent_name=agent)
+
+
+@app.get("/v1/quality/format-config")
+def get_quality_format_config():
+    """Get format validation configuration."""
+    from app.quality import get_format_config
+    return get_format_config()
+
+
+@app.get("/v1/quality/quality-config")
+def get_quality_checks_config():
+    """Get quality checks configuration."""
+    from app.quality import get_quality_config
+    return get_quality_config()
+
+
+@app.get("/v1/quality/toxicity-config")
+def get_quality_toxicity_config():
+    """Get toxicity detection configuration."""
+    from app.quality import get_toxicity_config
+    return get_toxicity_config()
+
+
+@app.post("/v1/quality/reload")
+def reload_quality_policies():
+    """Reload quality policies (hot reload)."""
+    from app.quality.policy import get_quality_policy_loader
+    policy_loader = get_quality_policy_loader()
+    policy_loader.reload()
+    logger.info("Quality policies reloaded")
+    return {"status": "success", "message": "Quality policies reloaded"}
 
 
 @app.post("/v1/routing/reload")
@@ -422,8 +467,34 @@ async def chat(req: ChatRequest):
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
     
+    # Quality checks
+    # Validate length
+    length_valid, length_error = validate_length(output_text, agent_name)
+    if not length_valid:
+        raise HTTPException(status_code=500, detail=length_error)
+    
+    # Validate format
+    format_valid, format_error, detected_format = validate_format(output_text)
+    if not format_valid:
+        raise HTTPException(status_code=500, detail=format_error)
+    
+    # Validate quality (coherence and relevance)
+    quality_valid, quality_error, quality_scores = validate_quality(req.input, output_text, agent_name)
+    if not quality_valid:
+        logger.warn("Quality check failed", scores=quality_scores, error=quality_error)
+        # Don't block, just log warning for now (can be made configurable)
+    
+    # Check toxicity
+    toxicity_allowed, toxicity_error, toxicity_score = check_toxicity(output_text)
+    if not toxicity_allowed:
+        raise HTTPException(status_code=500, detail=toxicity_error)
+    
     # Sanitize response
     sanitized_output = sanitize_response(output_text)
+    
+    # Sanitize toxicity if needed
+    if toxicity_score > 0:
+        sanitized_output = sanitize_toxicity(sanitized_output)
     
     # Check and mask PII in response if needed
     response_pii_allowed, response_pii_error, response_pii_counts = check_pii(sanitized_output)

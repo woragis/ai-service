@@ -45,6 +45,8 @@ services:
       - CACHING_POLICIES_PATH=/app/caching/policies
       # Security policies path
       - SECURITY_POLICIES_PATH=/app/security/policies
+      # Quality policies path
+      - QUALITY_POLICIES_PATH=/app/quality/policies
       
       # API Keys - set these from your .env file
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -76,6 +78,8 @@ services:
       - ./caching/policies:/app/caching/policies:ro
       # Security policies
       - ./security/policies:/app/security/policies:ro
+      # Quality policies
+      - ./quality/policies:/app/quality/policies:ro
       # Knowledge base documents
       - ./knowledge:/app/knowledge:ro
     depends_on:

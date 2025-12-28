@@ -1,0 +1,39 @@
+version: "1.0.0"
+quality:
+  length_limits:
+    enabled: true
+    min_length: 10  # Minimum response length in characters
+    max_length: 50000  # Maximum response length in characters
+    per_agent_limits:
+      developer:
+        min: 50
+        max: 20000
+      economist:
+        min: 100
+        max: 30000
+  
+  format_validation:
+    enabled: true
+    allowed_formats: ["text", "json", "markdown"]
+    required_format: null  # null = any allowed format, set to "json" or "markdown" to require specific format
+    validate_json: true  # Validate JSON format if JSON is detected
+    validate_markdown: false  # Basic markdown validation
+  
+  quality_checks:
+    enabled: true
+    check_coherence: true  # Check if response is coherent
+    check_relevance: true  # Check if response is relevant to query
+    coherence_threshold: 0.5  # Minimum coherence score (0-1)
+    relevance_threshold: 0.5  # Minimum relevance score (0-1)
+    use_semantic_similarity: true  # Use semantic similarity for relevance
+  
+  toxicity_detection:
+    enabled: true
+    threshold: 0.7  # Minimum toxicity score to trigger (0-1)
+    action: "block"  # Options: "block", "warn", "sanitize"
+    toxic_keywords:
+      - "hate"
+      - "violence"
+      - "discrimination"
+      - "harassment"
+

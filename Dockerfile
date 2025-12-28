@@ -21,6 +21,7 @@ COPY resilience /app/resilience
 COPY cost_control /app/cost_control
 COPY caching /app/caching
 COPY security /app/security
+COPY quality /app/quality
 
 EXPOSE 8000
 
