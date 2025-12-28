@@ -297,6 +297,9 @@ async def chat_stream(req: ChatStreamRequest):
         messages = [{"role": "system", "content": system_text}]
         if req.system:
             messages.append({"role": "system", "content": req.system})
+        # Add RAG context if available
+        if rag_context:
+            messages.append({"role": "system", "content": rag_context})
         messages.append({"role": "user", "content": req.input})
 
         client = CipherClient.from_env()
