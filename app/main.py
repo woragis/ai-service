@@ -323,7 +323,7 @@ async def chat_stream(req: ChatStreamRequest):
         raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
     async def event_gen():
-        logger.info("stream started", agent=agent_name, provider=provider)
+        logger.info("stream started", agent=agent_name, provider=provider, has_rag_context=bool(rag_context))
         full_parts = []
         try:
             # The prompt template expects both 'agent_name' and 'input' variables
