@@ -1,0 +1,141 @@
+groups:
+  - name: ai_service_alerts
+    interval: 30s
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) * 100 > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "High error rate detected in AI Service"
+          description: "Error rate is {{ $value }}%, exceeding 1% threshold for 5 minutes"
+
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: up{job="ai-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "AI Service is down"
+          description: "AI Service has been down for more than 1 minute"
+
+      # High Latency Alert (P95)
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "High P95 latency detected"
+          description: "P95 latency is {{ $value }}s, exceeding 500ms threshold"
+
+      # High Latency Alert (P99)
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "High P99 latency detected"
+          description: "P99 latency is {{ $value }}s, exceeding 1000ms threshold"
+
+      # Low Availability Alert
+      - alert: LowAvailability
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"2.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) * 100 < 99.9
+        for: 10m
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "Availability below SLO target"
+          description: "Availability is {{ $value }}%, below 99.9% SLO target"
+
+      # High Request Rate Alert
+      - alert: HighRequestRate
+        expr: |
+          sum(rate(http_requests_total[5m])) by (service) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is {{ $value }} req/s, exceeding 1000 req/s"
+
+      # Error Budget Depletion Alert
+      - alert: ErrorBudgetDepletion
+        expr: |
+          (
+            (1 - (
+              sum(rate(http_requests_total{status=~"2.."}[30d])) by (service)
+              /
+              sum(rate(http_requests_total[30d])) by (service)
+            )) * 100
+          ) > 0.1
+        for: 1h
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "Error budget is being depleted"
+          description: "Error rate over 30 days is {{ $value }}%, exceeding 0.1% error budget"
+
+      # Memory Usage Alert
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes / 1024 / 1024) > 512
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}MB, exceeding 512MB threshold"
+
+      # CPU Usage Alert
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-service
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}%, exceeding 80% threshold"
+
+      # External API Failure Alert
+      - alert: ExternalAPIFailure
+        expr: |
+          sum(rate(http_requests_total{endpoint=~"/v1/chat.*",status=~"5.."}[5m])) by (endpoint) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-service
+        annotations:
+          summary: "External API failures detected"
+          description: "Chat endpoint is experiencing {{ $value }} errors/s"
+
