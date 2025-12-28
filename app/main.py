@@ -13,7 +13,9 @@ import json
 
 from app.agents import get_agent_names, get_agent, build_agent_with_model, build_system_message, get_rag_context
 from app.providers import make_model, CipherClient
+from app.routing import select_provider_and_model, execute_with_fallback
 from app.config import settings
+from app.cost_tracking import cost_tracker
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -118,6 +120,16 @@ def reload_agents():
     return {"status": "success", "message": "Agent policies reloaded", "agents": get_agent_names()}
 
 
+@app.post("/v1/routing/reload")
+def reload_routing():
+    """Reload routing policies (hot reload)."""
+    from app.routing.policy import get_routing_policy_loader
+    policy_loader = get_routing_policy_loader()
+    policy_loader.reload()
+    logger.info("Routing policies reloaded")
+    return {"status": "success", "message": "Routing policies reloaded"}
+
+
 def _apply_overrides(chain: Runnable, model_name: Optional[str], temperature: Optional[float]) -> Runnable:
     # For simple chains, we rebuild only if overrides provided
     if model_name or temperature is not None:
@@ -144,8 +156,6 @@ async def chat(req: ChatRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
-    provider = (req.provider or "openai").lower()
-
     # Simple heuristic for auto agent selection
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
@@ -161,6 +171,20 @@ async def chat(req: ChatRequest):
 
     # Get RAG context if enabled for this agent
     rag_context = await get_rag_context(agent_name, req.input)
+
+    # Select provider and model using routing policies
+    cost_mode = os.getenv("COST_MODE", "balanced")  # Can be overridden per request in future
+    selected_provider, selected_model, fallback_chain = select_provider_and_model(
+        requested_provider=req.provider,
+        requested_model=req.model,
+        query=req.input,
+        agent_name=agent_name,
+        cost_mode=cost_mode,
+        enable_fallback=True,
+    )
+    
+    provider = selected_provider
+    model = selected_model or req.model
 
     # Cipher provider: call external API directly (query string API key, OpenAI-like JSON)
     if provider == "cipher":
@@ -185,38 +209,50 @@ async def chat(req: ChatRequest):
         )
         return ChatResponse(agent=agent_name, output=text)
 
-    # Default: build model via LangChain
+    # Default: build model via LangChain with fallback support
+    async def _execute_chat(attempt_provider: str, attempt_model: Optional[str]):
+        """Execute chat with a specific provider/model."""
+        try:
+            model_obj = make_model(attempt_provider, attempt_model, req.temperature)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        chain = build_agent_with_model(agent_name, model_obj)
+        if not chain:
+            raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
+
+        # Optionally augment with extra system instruction by prepending a SystemMessage
+        inputs = req.input
+        if req.system:
+            # Simple concatenation to include system guidance
+            inputs = f"{req.system}\n\nUser: {req.input}"
+        
+        # Add RAG context to input if available
+        if rag_context:
+            inputs = rag_context + "\n\nUser Query: " + inputs
+
+        logger.info("invoking chat chain", agent=agent_name, provider=attempt_provider, model=attempt_model, has_rag_context=bool(rag_context))
+        # The prompt template expects both 'agent_name' and 'input' variables
+        result = await chain.ainvoke({
+            "agent_name": agent_name.title() + " Agent",
+            "input": inputs
+        })
+        if hasattr(result, "content"):
+            return result.content  # AIMessage
+        else:
+            return str(result)
+    
+    # Execute with fallback chain
     try:
-        model = make_model(provider, req.model, req.temperature)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    chain = build_agent_with_model(agent_name, model)
-    if not chain:
-        raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
-
-    # Get RAG context if enabled for this agent
-    rag_context = await get_rag_context(agent_name, req.input)
-    
-    # Optionally augment with extra system instruction by prepending a SystemMessage
-    inputs = req.input
-    if req.system:
-        # Simple concatenation to include system guidance
-        inputs = f"{req.system}\n\nUser: {req.input}"
-    
-    # Add RAG context to input if available
-    if rag_context:
-        inputs = rag_context + "\n\nUser Query: " + inputs
-
-    logger.info("invoking chat chain", agent=agent_name, provider=provider, has_rag_context=bool(rag_context))
-    # The prompt template expects both 'agent_name' and 'input' variables
-    result = await chain.ainvoke({
-        "agent_name": agent_name.title() + " Agent",
-        "input": inputs
-    })
-    if hasattr(result, "content"):
-        output_text = result.content  # AIMessage
-    else:
-        output_text = str(result)
+        output_text = await execute_with_fallback(
+            provider,
+            model,
+            fallback_chain,
+            _execute_chat
+        )
+    except Exception as e:
+        logger.error("Chat execution failed", error=str(e), provider=provider, fallback_chain=fallback_chain)
+        raise HTTPException(status_code=500, detail=f"Chat execution failed: {str(e)}")
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
     
@@ -281,7 +317,19 @@ async def chat_stream(req: ChatStreamRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
-    provider = (req.provider or "openai").lower()
+    # Select provider and model using routing policies
+    cost_mode = os.getenv("COST_MODE", "balanced")
+    selected_provider, selected_model, fallback_chain = select_provider_and_model(
+        requested_provider=req.provider,
+        requested_model=req.model,
+        query=req.input,
+        agent_name=req.agent,
+        cost_mode=cost_mode,
+        enable_fallback=True,
+    )
+    
+    provider = selected_provider
+    model = selected_model or req.model
 
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
@@ -332,39 +380,59 @@ async def chat_stream(req: ChatStreamRequest):
 
         return StreamingResponse(_gen_once(), media_type="application/x-ndjson")
 
-    # LangChain-supported streaming
-    try:
-        model = make_model(provider, req.model, req.temperature)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    chain = build_agent_with_model(agent_name, model)
-    if not chain:
-        raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
-
-    async def event_gen():
-        logger.info("stream started", agent=agent_name, provider=provider, has_rag_context=bool(rag_context))
-        full_parts = []
+    # LangChain-supported streaming with fallback
+    async def _execute_stream(attempt_provider: str, attempt_model: Optional[str]):
+        """Execute streaming chat with a specific provider/model."""
         try:
-            # The prompt template expects both 'agent_name' and 'input' variables
-            async for event in chain.astream_events({
-                "agent_name": agent_name.title() + " Agent",
-                "input": inputs
-            }, version="v1"):
-                if event.get("event") in ("on_chat_model_stream", "on_llm_new_token"):
-                    data = event.get("data", {})
-                    chunk = None
-                    if "chunk" in data and hasattr(data["chunk"], "content"):
-                        chunk = data["chunk"].content
-                    elif "token" in data:
-                        chunk = data["token"]
-                    if chunk:
-                        full_parts.append(chunk)
-                        yield json.dumps({"delta": chunk}) + "\n"
-        except Exception as e:
-            logger.exception("stream error", exc_info=True)
-            yield json.dumps({"error": str(e)}) + "\n"
-        final_text = "".join(full_parts)
-        logger.info("stream completed", agent=agent_name, output_len=len(final_text))
-        yield json.dumps({"done": True, "output": final_text}) + "\n"
+            model_obj = make_model(attempt_provider, attempt_model, req.temperature)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        chain = build_agent_with_model(agent_name, model_obj)
+        if not chain:
+            raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
-    return StreamingResponse(event_gen(), media_type="application/x-ndjson")
+        async def event_gen():
+            logger.info("stream started", agent=agent_name, provider=attempt_provider, model=attempt_model, has_rag_context=bool(rag_context))
+            full_parts = []
+            try:
+                # The prompt template expects both 'agent_name' and 'input' variables
+                async for event in chain.astream_events({
+                    "agent_name": agent_name.title() + " Agent",
+                    "input": inputs
+                }, version="v1"):
+                    if event.get("event") in ("on_chat_model_stream", "on_llm_new_token"):
+                        data = event.get("data", {})
+                        chunk = None
+                        if "chunk" in data and hasattr(data["chunk"], "content"):
+                            chunk = data["chunk"].content
+                        elif "token" in data:
+                            chunk = data["token"]
+                        if chunk:
+                            full_parts.append(chunk)
+                            yield json.dumps({"delta": chunk}) + "\n"
+            except Exception as e:
+                logger.exception("stream error", exc_info=True)
+                yield json.dumps({"error": str(e)}) + "\n"
+            final_text = "".join(full_parts)
+            logger.info("stream completed", agent=agent_name, output_len=len(final_text))
+            yield json.dumps({"done": True, "output": final_text}) + "\n"
+        
+        return event_gen()
+    
+    # For streaming, we can't easily use fallback (streaming is stateful)
+    # So we'll just try the primary provider
+    try:
+        event_gen = await _execute_stream(provider, model)
+        return StreamingResponse(event_gen, media_type="application/x-ndjson")
+    except Exception as e:
+        logger.error("Stream execution failed, trying fallback", error=str(e), provider=provider)
+        # Try first fallback if available
+        if fallback_chain:
+            try:
+                event_gen = await _execute_stream(fallback_chain[0], model)
+                return StreamingResponse(event_gen, media_type="application/x-ndjson")
+            except Exception as fallback_error:
+                logger.error("Fallback stream also failed", error=str(fallback_error))
+                raise HTTPException(status_code=500, detail=f"Stream execution failed: {str(fallback_error)}")
+        raise HTTPException(status_code=500, detail=f"Stream execution failed: {str(e)}")

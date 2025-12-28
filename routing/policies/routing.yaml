@@ -1,0 +1,119 @@
+version: "1.0.0"
+
+routing:
+  name: "default"
+  description: "Default routing policy for model selection and fallback"
+  
+  default_provider: "openai"
+  default_model: "gpt-4o-mini"
+  enable_auto_routing: true
+  
+  providers:
+    openai:
+      priority: 1
+      models:
+        - "gpt-4o-mini"
+        - "gpt-4o"
+        - "gpt-4-turbo"
+      cost_tier: "medium"
+      quality_tier: "high"
+      enabled: true
+      timeout: 60.0
+      max_retries: 3
+    
+    anthropic:
+      priority: 2
+      models:
+        - "claude-3-haiku"
+        - "claude-3-sonnet"
+        - "claude-3-opus"
+      cost_tier: "medium"
+      quality_tier: "high"
+      enabled: true
+      timeout: 60.0
+      max_retries: 3
+    
+    xai:
+      priority: 3
+      models:
+        - "grok-beta"
+      cost_tier: "low"
+      quality_tier: "medium"
+      enabled: true
+      timeout: 60.0
+      max_retries: 3
+    
+    manus:
+      priority: 4
+      models:
+        - "manus-model"
+      cost_tier: "low"
+      quality_tier: "medium"
+      enabled: true
+      timeout: 60.0
+      max_retries: 3
+  
+  fallback_chains:
+    - primary: "openai"
+      fallbacks:
+        - "anthropic"
+        - "xai"
+      conditions:
+        error_types: ["rate_limit", "timeout", "service_unavailable"]
+    
+    - primary: "anthropic"
+      fallbacks:
+        - "openai"
+        - "xai"
+      conditions:
+        error_types: ["rate_limit", "timeout"]
+  
+  complexity_rules:
+    - complexity: "simple"
+      provider_preference:
+        - "xai"
+        - "manus"
+        - "openai"
+      model_preference:
+        xai: "grok-beta"
+        manus: "manus-model"
+        openai: "gpt-4o-mini"
+      conditions:
+        max_tokens: 500
+    
+    - complexity: "medium"
+      provider_preference:
+        - "openai"
+        - "anthropic"
+      model_preference:
+        openai: "gpt-4o-mini"
+        anthropic: "claude-3-haiku"
+      conditions:
+        max_tokens: 2000
+    
+    - complexity: "complex"
+      provider_preference:
+        - "openai"
+        - "anthropic"
+      model_preference:
+        openai: "gpt-4o"
+        anthropic: "claude-3-sonnet"
+      conditions:
+        max_tokens: 4000
+  
+  cost_quality:
+    mode: "balanced"
+    cost_threshold: 0.10  # USD per request
+    quality_threshold: 0.8  # Quality score (0-1)
+    provider_mapping:
+      cost_optimized:
+        xai: "grok-beta"
+        manus: "manus-model"
+        openai: "gpt-4o-mini"
+      balanced:
+        openai: "gpt-4o-mini"
+        anthropic: "claude-3-haiku"
+      quality_optimized:
+        openai: "gpt-4o"
+        anthropic: "claude-3-opus"
+

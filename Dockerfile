@@ -16,6 +16,7 @@ RUN pip install -r /app/requirements.txt
 
 COPY app /app/app
 COPY agents /app/agents
+COPY routing /app/routing
 
 EXPOSE 8000
 

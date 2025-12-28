@@ -35,6 +35,8 @@ services:
       
       # Agent policies path
       - AGENT_POLICIES_PATH=/app/agents/policies
+      # Routing policies path
+      - ROUTING_POLICIES_PATH=/app/routing/policies
       
       # API Keys - set these from your .env file
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -56,6 +58,8 @@ services:
       - ./.env:/app/.env:ro
       # Agent policies
       - ./agents/policies:/app/agents/policies:ro
+      # Routing policies
+      - ./routing/policies:/app/routing/policies:ro
       # Knowledge base documents
       - ./knowledge:/app/knowledge:ro
     depends_on:
