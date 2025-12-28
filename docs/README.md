@@ -9,6 +9,7 @@ This directory contains comprehensive documentation for the AI Service, covering
 3. [Performance Testing](./performance-testing.md) - Load, stress, and spike testing
 4. [Security Testing](./security-testing.md) - SAST, DAST, and dependency scanning
 5. [Advanced Deployment](./advanced-deployment.md) - Canary and blue-green deployments
+6. [Feature Deployment](./FEATURE_DEPLOYMENT.md) - Where features run and how to deploy them
 
 ## Quick Links
 
