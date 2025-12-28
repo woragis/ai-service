@@ -1,0 +1,19 @@
+# Test dependencies (not included in Docker image)
+-r requirements.txt
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+
+# Security testing
+bandit==1.7.8
+safety==3.2.0
+pip-audit==2.7.1
+
+# Contract testing (requires specific httpx version)
+# Note: pact-python has strict httpx dependency, may conflict with other packages
+# Only install if running contract tests
+pact-python==2.0.0; python_version >= "3.8"
+

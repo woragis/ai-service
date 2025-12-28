@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-test.txt
       
       - name: Run unit tests
         id: unit_tests
@@ -147,7 +147,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-test.txt
       
       - name: Run integration tests
         id: integration_tests
@@ -296,8 +296,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install bandit safety pip-audit
+          pip install -r requirements-test.txt
       
       - name: Run Bandit (SAST)
         id: bandit
@@ -365,7 +364,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-test.txt
       
       - name: Run performance tests
         id: perf_tests
@@ -407,7 +406,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-test.txt
       
       - name: Run chaos tests
         id: chaos_tests
@@ -449,7 +448,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-test.txt
       
       - name: Run contract tests
         id: contract_tests

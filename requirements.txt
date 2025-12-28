@@ -21,18 +21,7 @@ opentelemetry-exporter-otlp-proto-http==1.20.0
 opentelemetry-instrumentation-fastapi==0.41b0
 opentelemetry-instrumentation-requests==0.41b0
 
-# Testing dependencies
-pytest==8.3.3
-pytest-asyncio==0.24.0
-pytest-cov==6.0.0
-pytest-mock==3.14.0
-
-# Security testing
-bandit==1.7.8
-safety==3.2.0
-pip-audit==2.7.1
-
-# Contract testing
-pact-python==2.0.0
+# Note: Test dependencies moved to requirements-test.txt
+# Install with: pip install -r requirements-test.txt
 
 
