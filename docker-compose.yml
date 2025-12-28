@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ai-service-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      # Vector DB configuration
+      - VECTOR_DB_TYPE=qdrant
+      - VECTOR_DB_HOST=qdrant
+      - VECTOR_DB_PORT=6333
+      
+      # File storage configuration
+      - FILE_STORAGE_TYPE=local
+      - FILE_STORAGE_BASE_PATH=/app/knowledge
+      
+      # Agent policies path
+      - AGENT_POLICIES_PATH=/app/agents/policies
+      
+      # API Keys (set via .env or secrets)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CIPHER_API_KEY=${CIPHER_API_KEY}
+      
+      # Service config
+      - ENV=development
+      - LOG_LEVEL=info
+      - CORS_ENABLED=true
+      - CORS_ALLOWED_ORIGINS=*
+    volumes:
+      # Agent policies
+      - ./agents/policies:/app/agents/policies:ro
+      # Knowledge base documents
+      - ./knowledge:/app/knowledge:ro
+      # User plugins (optional)
+      - ./plugins:/app/plugins:ro
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  qdrant_storage:
+

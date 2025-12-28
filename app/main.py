@@ -11,7 +11,7 @@ from langchain_core.runnables import Runnable
 from fastapi.responses import StreamingResponse
 import json
 
-from app.agents import get_agent_names, get_agent, build_agent_with_model, build_system_message
+from app.agents import get_agent_names, get_agent, build_agent_with_model, build_system_message, get_rag_context
 from app.providers import make_model, CipherClient
 from app.config import settings
 from app.logger import configure_logging, get_logger
@@ -178,13 +178,20 @@ async def chat(req: ChatRequest):
     if not chain:
         raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
+    # Get RAG context if enabled for this agent
+    rag_context = await get_rag_context(agent_name, req.input)
+    
     # Optionally augment with extra system instruction by prepending a SystemMessage
     inputs = req.input
     if req.system:
         # Simple concatenation to include system guidance
         inputs = f"{req.system}\n\nUser: {req.input}"
+    
+    # Add RAG context to input if available
+    if rag_context:
+        inputs = rag_context + "\n\nUser Query: " + inputs
 
-    logger.info("invoking chat chain", agent=agent_name, provider=provider)
+    logger.info("invoking chat chain", agent=agent_name, provider=provider, has_rag_context=bool(rag_context))
     # The prompt template expects both 'agent_name' and 'input' variables
     result = await chain.ainvoke({
         "agent_name": agent_name.title() + " Agent",
@@ -272,10 +279,17 @@ async def chat_stream(req: ChatStreamRequest):
 
     agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
 
+    # Get RAG context if enabled for this agent
+    rag_context = await get_rag_context(agent_name, req.input)
+    
     # Prepare input
     inputs = req.input
     if req.system:
         inputs = f"{req.system}\n\nUser: {req.input}"
+    
+    # Add RAG context to input if available
+    if rag_context:
+        inputs = rag_context + "\n\nUser Query: " + inputs
 
     # Cipher has no documented streaming: return one full chunk then done
     if provider == "cipher":
