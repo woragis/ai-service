@@ -17,7 +17,9 @@ from app.config import settings
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
+from app.middleware_timeout import TimeoutMiddleware
 from app.tracing import init_tracing, get_trace_id, set_trace_id
+from app.graceful_shutdown import lifespan
 from prometheus_fastapi_instrumentator import Instrumentator
 
 
@@ -43,12 +45,17 @@ try:
 except Exception as e:
     logger.warn("Failed to initialize tracing", error=str(e))
 
-app = FastAPI(title="Woragis AI Service", version="0.1.0")
+app = FastAPI(
+    title="Woragis AI Service",
+    version="0.1.0",
+    lifespan=lifespan
+)
 
-# Add middleware for request ID, logging, and SLO tracking
+# Add middleware for request ID, logging, SLO tracking, and timeouts
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RequestLoggerMiddleware)
 app.add_middleware(SLOTrackingMiddleware)
+app.add_middleware(TimeoutMiddleware)
 
 # Add Prometheus metrics instrumentation
 Instrumentator().instrument(app).expose(app)
@@ -189,6 +196,19 @@ async def chat(req: ChatRequest):
         output_text = str(result)
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
+    
+    # Track cost (estimate based on tokens if available)
+    # Note: Actual token counts would come from provider response
+    try:
+        cost_tracker.record_request(
+            endpoint="/v1/chat",
+            provider=provider,
+            cost_usd=0.0  # Would calculate from actual token usage
+        )
+        cost_tracker.record_api_call(provider=provider, model=req.model or "default")
+    except Exception as e:
+        logger.warn("Failed to record cost metrics", error=str(e))
+    
     return ChatResponse(agent=agent_name, output=output_text)
 
 

@@ -1,0 +1,27 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ai-service
+  namespace: flux-system
+spec:
+  interval: 5m
+  path: ./deployment
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: ai-service
+  targetNamespace: default
+  timeout: 5m
+
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: ai-service
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: https://github.com/woragis/ai-service
+  ref:
+    branch: main
+
