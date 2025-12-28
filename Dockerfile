@@ -19,6 +19,7 @@ COPY agents /app/agents
 COPY routing /app/routing
 COPY resilience /app/resilience
 COPY cost_control /app/cost_control
+COPY caching /app/caching
 
 EXPOSE 8000
 

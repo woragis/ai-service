@@ -23,6 +23,7 @@ from app.cost_control import (
     get_token_limits,
     get_cost_routing_config,
 )
+from app.caching import get_cache_manager
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -166,6 +167,35 @@ def reload_cost_control():
     return {"status": "success", "message": "Cost control policies reloaded"}
 
 
+@app.get("/v1/cache/stats")
+def get_cache_stats():
+    """Get cache statistics."""
+    cache_manager = get_cache_manager()
+    return cache_manager.get_stats()
+
+
+@app.post("/v1/cache/clear")
+def clear_cache():
+    """Clear all caches."""
+    cache_manager = get_cache_manager()
+    cache_manager.clear()
+    logger.info("Cache cleared")
+    return {"status": "success", "message": "Cache cleared"}
+
+
+@app.post("/v1/cache/reload")
+def reload_cache_policies():
+    """Reload caching policies (hot reload)."""
+    from app.caching.policy import get_caching_policy_loader
+    from app.caching.cache_manager import reset_cache_manager
+    policy_loader = get_caching_policy_loader()
+    policy_loader.reload()
+    # Reinitialize cache manager with new policies
+    reset_cache_manager()
+    logger.info("Caching policies reloaded")
+    return {"status": "success", "message": "Caching policies reloaded"}
+
+
 @app.post("/v1/routing/reload")
 def reload_routing():
     """Reload routing policies (hot reload)."""
@@ -256,6 +286,20 @@ async def chat(req: ChatRequest):
     provider = selected_provider
     model = selected_model or req.model
     
+    # Check cache before processing
+    cache_manager = get_cache_manager()
+    cached_response = cache_manager.get(
+        query=req.input,
+        agent_name=agent_name,
+        provider=provider,
+        model=model,
+        endpoint="/v1/chat"
+    )
+    
+    if cached_response is not None:
+        logger.info("Cache hit", agent=agent_name, provider=provider, model=model)
+        return ChatResponse(agent=agent_name, output=cached_response)
+    
     # Estimate cost and check budget before processing
     estimated_cost, budget_allowed, budget_error = estimate_and_check_cost(
         provider=provider,
@@ -337,6 +381,19 @@ async def chat(req: ChatRequest):
         raise HTTPException(status_code=500, detail=f"Chat execution failed: {str(e)}")
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
+    
+    # Store in cache
+    try:
+        cache_manager.set(
+            query=req.input,
+            agent_name=agent_name,
+            provider=provider,
+            model=model,
+            value=output_text,
+            endpoint="/v1/chat"
+        )
+    except Exception as e:
+        logger.warn("Failed to store in cache", error=str(e))
     
     # Estimate output tokens and final cost
     estimated_output_tokens = len(output_text) // 4  # Rough estimate

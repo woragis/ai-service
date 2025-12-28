@@ -1,0 +1,25 @@
+version: "1.0.0"
+caching:
+  enabled: true
+  
+  ttl:
+    default_ttl_seconds: 3600  # 1 hour default
+    per_agent_ttl:
+      economist: 7200  # 2 hours for economist
+      strategist: 7200  # 2 hours for strategist
+      developer: 1800  # 30 minutes for developer
+    per_endpoint_ttl:
+      /v1/chat: 3600
+      /v1/chat/stream: 0  # Disable caching for streaming
+  
+  semantic_similarity:
+    enabled: true
+    similarity_threshold: 0.85  # 0-1, higher = more similar required
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"  # Lightweight model
+    max_cache_entries: 10000  # Max number of cached queries for similarity search
+  
+  size_limits:
+    max_size_mb: 500  # Maximum cache size in MB
+    max_entries: 10000  # Maximum number of cache entries
+    eviction_policy: "lru"  # Options: "lru", "lfu", "fifo"
+
