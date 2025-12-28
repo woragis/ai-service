@@ -1,0 +1,30 @@
+version: "1.0.0"
+features:
+  version: "1.0.0"
+  
+  rag:
+    enabled: true
+    default_enabled: true  # Default for agents not in per_agent_enabled
+    per_agent_enabled:
+      economist: true
+      strategist: true
+      developer: true
+      entrepreneur: false  # Disable RAG for entrepreneur agent
+      startup: true
+  
+  streaming:
+    enabled: true
+    per_endpoint_enabled:
+      /v1/chat/stream: true
+      /v1/chat: false  # Non-streaming endpoint
+  
+  providers:
+    enabled_providers: ["openai", "anthropic", "cipher", "xai"]
+    disabled_providers: []  # Providers to explicitly disable
+  
+  custom_flags:
+    # Custom feature flags can be added here
+    # Example:
+    # advanced_logging: true
+    # experimental_features: false
+

@@ -22,6 +22,7 @@ COPY cost_control /app/cost_control
 COPY caching /app/caching
 COPY security /app/security
 COPY quality /app/quality
+COPY features /app/features
 
 EXPOSE 8000
 

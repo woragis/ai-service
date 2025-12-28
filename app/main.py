@@ -38,6 +38,7 @@ from app.quality import (
     check_toxicity,
     sanitize_toxicity,
 )
+from app.features import is_rag_enabled, is_provider_enabled
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -258,6 +259,23 @@ def reload_quality_policies():
     return {"status": "success", "message": "Quality policies reloaded"}
 
 
+@app.get("/v1/features/config")
+def get_features_config():
+    """Get feature flags configuration."""
+    from app.features import get_feature_config
+    return get_feature_config()
+
+
+@app.post("/v1/features/reload")
+def reload_feature_policies():
+    """Reload feature flag policies (hot reload)."""
+    from app.features.policy import get_feature_policy_loader
+    policy_loader = get_feature_policy_loader()
+    policy_loader.reload()
+    logger.info("Feature policies reloaded")
+    return {"status": "success", "message": "Feature policies reloaded"}
+
+
 @app.post("/v1/routing/reload")
 def reload_routing():
     """Reload routing policies (hot reload)."""
@@ -341,7 +359,9 @@ async def chat(req: ChatRequest):
             logger.info("PII masked in input", pii_counts=pii_counts)
 
     # Get RAG context if enabled for this agent
-    rag_context = await get_rag_context(agent_name, input_text)
+    rag_context = None
+    if is_rag_enabled(agent_name):
+        rag_context = await get_rag_context(agent_name, input_text)
 
     # Estimate input tokens (simple approximation: ~4 chars per token)
     if req.system:
@@ -369,6 +389,10 @@ async def chat(req: ChatRequest):
     
     provider = selected_provider
     model = selected_model or req.model
+    
+    # Check if provider is enabled
+    if not is_provider_enabled(provider):
+        raise HTTPException(status_code=400, detail=f"Provider '{provider}' is disabled")
     
     # Check cache before processing
     cache_manager = get_cache_manager()
@@ -605,6 +629,10 @@ async def chat_stream(req: ChatStreamRequest):
     
     provider = selected_provider
     model = selected_model or req.model
+    
+    # Check if provider is enabled
+    if not is_provider_enabled(provider):
+        raise HTTPException(status_code=400, detail=f"Provider '{provider}' is disabled")
 
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
@@ -618,8 +646,15 @@ async def chat_stream(req: ChatStreamRequest):
 
     agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
 
+    # Check if streaming is enabled
+    from app.features import is_streaming_enabled
+    if not is_streaming_enabled("/v1/chat/stream"):
+        raise HTTPException(status_code=400, detail="Streaming is disabled for this endpoint")
+
     # Get RAG context if enabled for this agent
-    rag_context = await get_rag_context(agent_name, req.input)
+    rag_context = None
+    if is_rag_enabled(agent_name):
+        rag_context = await get_rag_context(agent_name, req.input)
     
     # Prepare input
     inputs = req.input
