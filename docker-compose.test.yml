@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-service-test
+    ports:
+      - "8000:8000"
+    environment:
+      # API Keys - set these from your .env file
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CIPHER_API_KEY=${CIPHER_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - MANUS_API_KEY=${MANUS_API_KEY}
+      # Service config
+      - ENV=development
+      - LOG_LEVEL=info
+      - CORS_ENABLED=true
+      - CORS_ALLOWED_ORIGINS=*
+      # Tracing (optional)
+      - OTLP_ENDPOINT=http://jaeger:4318
+    volumes:
+      # Mount .env file if it exists
+      - ./.env:/app/.env:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
