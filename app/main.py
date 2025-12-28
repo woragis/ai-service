@@ -72,7 +72,7 @@ if settings.CORS_ENABLED:
 
 
 class ChatRequest(BaseModel):
-    agent: Literal["economist", "strategist", "entrepreneur", "startup", "auto"] = Field(..., description="Agent persona or 'auto'")
+    agent: str = Field(..., description="Agent persona name or 'auto'")
     input: str = Field(..., description="User input or question")
     system: Optional[str] = Field(None, description="Optional additional system instruction")
     temperature: Optional[float] = Field(None, description="Optional temperature override")
@@ -106,6 +106,16 @@ class ImageResponse(BaseModel):
 @app.get("/v1/agents", response_model=list[str])
 def list_agents():
     return get_agent_names()
+
+
+@app.post("/v1/agents/reload")
+def reload_agents():
+    """Reload agent policies (hot reload)."""
+    from app.agents.policy import get_policy_loader
+    policy_loader = get_policy_loader()
+    policy_loader.reload()
+    logger.info("Agent policies reloaded")
+    return {"status": "success", "message": "Agent policies reloaded", "agents": get_agent_names()}
 
 
 def _apply_overrides(chain: Runnable, model_name: Optional[str], temperature: Optional[float]) -> Runnable:
