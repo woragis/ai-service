@@ -24,6 +24,13 @@ from app.cost_control import (
     get_cost_routing_config,
 )
 from app.caching import get_cache_manager
+from app.security import (
+    check_content_filter,
+    check_pii,
+    mask_pii,
+    check_prompt_injection,
+    sanitize_response,
+)
 from app.logger import configure_logging, get_logger
 from app.middleware import RequestIDMiddleware, RequestLoggerMiddleware
 from app.middleware_slo import SLOTrackingMiddleware
@@ -196,6 +203,16 @@ def reload_cache_policies():
     return {"status": "success", "message": "Caching policies reloaded"}
 
 
+@app.post("/v1/security/reload")
+def reload_security_policies():
+    """Reload security policies (hot reload)."""
+    from app.security.policy import get_security_policy_loader
+    policy_loader = get_security_policy_loader()
+    policy_loader.reload()
+    logger.info("Security policies reloaded")
+    return {"status": "success", "message": "Security policies reloaded"}
+
+
 @app.post("/v1/routing/reload")
 def reload_routing():
     """Reload routing policies (hot reload)."""
@@ -255,15 +272,37 @@ async def chat(req: ChatRequest):
 
     agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
 
+    # Security checks on input
+    # Check prompt injection
+    injection_allowed, injection_error = check_prompt_injection(req.input)
+    if not injection_allowed:
+        raise HTTPException(status_code=400, detail=injection_error)
+    
+    # Check content filter
+    content_allowed, content_error = check_content_filter(req.input)
+    if not content_allowed:
+        raise HTTPException(status_code=400, detail=content_error)
+    
+    # Check and mask PII in input if needed
+    pii_allowed, pii_error, pii_counts = check_pii(req.input)
+    if not pii_allowed:
+        raise HTTPException(status_code=400, detail=pii_error)
+    
+    # Mask PII in input if policy requires it
+    input_text = req.input
+    if pii_counts:
+        input_text, _ = mask_pii(input_text)
+        if input_text != req.input:
+            logger.info("PII masked in input", pii_counts=pii_counts)
+
     # Get RAG context if enabled for this agent
-    rag_context = await get_rag_context(agent_name, req.input)
+    rag_context = await get_rag_context(agent_name, input_text)
 
     # Estimate input tokens (simple approximation: ~4 chars per token)
-    input_text = req.input
     if req.system:
-        input_text = f"{req.system}\n\n{req.input}"
+        input_text = f"{req.system}\n\n{input_text}"
     if rag_context:
-        input_text = f"{rag_context}\n\n{req.input}"
+        input_text = f"{rag_context}\n\n{input_text}"
     
     estimated_input_tokens = len(input_text) // 4  # Rough estimate
     
@@ -347,10 +386,11 @@ async def chat(req: ChatRequest):
             raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
         # Optionally augment with extra system instruction by prepending a SystemMessage
-        inputs = req.input
+        # Use masked input_text if PII was masked
+        inputs = input_text
         if req.system:
             # Simple concatenation to include system guidance
-            inputs = f"{req.system}\n\nUser: {req.input}"
+            inputs = f"{req.system}\n\nUser: {input_text}"
         
         # Add RAG context to input if available
         if rag_context:
@@ -382,21 +422,37 @@ async def chat(req: ChatRequest):
 
     logger.info("chat completed", agent=agent_name, output_len=len(output_text))
     
-    # Store in cache
+    # Sanitize response
+    sanitized_output = sanitize_response(output_text)
+    
+    # Check and mask PII in response if needed
+    response_pii_allowed, response_pii_error, response_pii_counts = check_pii(sanitized_output)
+    if not response_pii_allowed:
+        # If blocking is enabled, return error; otherwise mask
+        raise HTTPException(status_code=500, detail=response_pii_error)
+    
+    # Mask PII in response if policy requires it
+    final_output = sanitized_output
+    if response_pii_counts:
+        final_output, _ = mask_pii(sanitized_output)
+        if final_output != sanitized_output:
+            logger.info("PII masked in response", pii_counts=response_pii_counts)
+    
+    # Store in cache (use original input for cache key, but sanitized output for value)
     try:
         cache_manager.set(
-            query=req.input,
+            query=req.input,  # Use original input for cache key
             agent_name=agent_name,
             provider=provider,
             model=model,
-            value=output_text,
+            value=final_output,  # Store sanitized output
             endpoint="/v1/chat"
         )
     except Exception as e:
         logger.warn("Failed to store in cache", error=str(e))
     
     # Estimate output tokens and final cost
-    estimated_output_tokens = len(output_text) // 4  # Rough estimate
+    estimated_output_tokens = len(final_output) // 4  # Rough estimate
     final_cost = estimate_request_cost(provider, model or "default", estimated_input_tokens, estimated_output_tokens)
     
     # Track cost and tokens
@@ -416,7 +472,7 @@ async def chat(req: ChatRequest):
     except Exception as e:
         logger.warn("Failed to record cost metrics", error=str(e))
     
-    return ChatResponse(agent=agent_name, output=output_text)
+    return ChatResponse(agent=agent_name, output=final_output)
 
 
 @app.get("/healthz")

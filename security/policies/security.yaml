@@ -1,0 +1,49 @@
+version: "1.0.0"
+security:
+  content_filter:
+    enabled: true
+    blocked_patterns:
+      - "<script[^>]*>.*?</script>"  # XSS attempts
+      - "javascript:"  # JavaScript protocol
+      - "on\\w+\\s*="  # Event handlers
+      - "eval\\s*\\("  # eval() calls
+      - "exec\\s*\\("  # exec() calls
+    blocked_keywords:
+      - "malware"
+      - "virus"
+      - "exploit"
+      - "hack"
+    action: "block"  # Options: "block", "warn", "sanitize"
+  
+  pii_detection:
+    enabled: true
+    detect_email: true
+    detect_phone: true
+    detect_ssn: true
+    detect_credit_card: true
+    detect_ip_address: true
+    mask_char: "*"
+    action: "mask"  # Options: "mask", "block", "warn"
+  
+  response_sanitization:
+    enabled: true
+    remove_html_tags: true
+    remove_script_tags: true
+    remove_event_handlers: true
+    max_length: null  # null = no limit, set to number for limit
+    allowed_html_tags: ["p", "br", "strong", "em"]  # Tags to keep if remove_html_tags is true
+  
+  prompt_injection:
+    enabled: true
+    suspicious_patterns:
+      - "ignore\\s+(previous|above|all)\\s+instructions?"
+      - "forget\\s+(everything|all|previous)"
+      - "you\\s+are\\s+now\\s+(a|an)\\s+"
+      - "system\\s*:\\s*"
+      - "<\\|system\\|>"
+      - "\\[SYSTEM\\]"
+      - "override"
+      - "bypass"
+    action: "block"  # Options: "block", "warn", "sanitize"
+    threshold: 0.5  # Minimum confidence to trigger (0-1)
+

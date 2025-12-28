@@ -43,6 +43,8 @@ services:
       - COST_CONTROL_POLICIES_PATH=/app/cost_control/policies
       # Caching policies path
       - CACHING_POLICIES_PATH=/app/caching/policies
+      # Security policies path
+      - SECURITY_POLICIES_PATH=/app/security/policies
       
       # API Keys - set these from your .env file
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -72,6 +74,8 @@ services:
       - ./cost_control/policies:/app/cost_control/policies:ro
       # Caching policies
       - ./caching/policies:/app/caching/policies:ro
+      # Security policies
+      - ./security/policies:/app/security/policies:ro
       # Knowledge base documents
       - ./knowledge:/app/knowledge:ro
     depends_on:
