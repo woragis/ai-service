@@ -233,13 +233,17 @@ async def execute_with_fallback(
     last_exception = None
     start_time = time.time()
     
+    # Get circuit breaker manager
+    from app.resilience.circuit_breaker import get_circuit_breaker_manager
+    cb_manager = get_circuit_breaker_manager()
+    
     for attempt_provider in providers_to_try:
+        breaker = None
+        cb_config = None
         try:
             logger.info("Attempting provider", provider=attempt_provider, model=model)
             
             # Check circuit breaker
-            from app.resilience.circuit_breaker import get_circuit_breaker_manager
-            cb_manager = get_circuit_breaker_manager()
             cb_config = policy.circuit_breakers.get(attempt_provider)
             if cb_config and policy.enable_circuit_breaker:
                 breaker = cb_manager.get_breaker(
@@ -274,7 +278,7 @@ async def execute_with_fallback(
             )
             
             # Record success in circuit breaker
-            if cb_config and policy.enable_circuit_breaker:
+            if breaker and policy.enable_circuit_breaker:
                 breaker.record_success()
             
             if attempt_provider != provider:
@@ -286,7 +290,7 @@ async def execute_with_fallback(
             latency_ms = (time.time() - start_time) * 1000
             
             # Record failure in circuit breaker
-            if cb_config and policy.enable_circuit_breaker:
+            if breaker and policy.enable_circuit_breaker:
                 breaker.record_failure()
             
             # Check for graceful degradation
