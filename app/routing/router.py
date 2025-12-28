@@ -5,6 +5,7 @@ Implements provider selection, fallback chains, query complexity detection,
 and cost/quality trade-offs based on routing policies.
 """
 
+import time
 from typing import Optional, Tuple, List
 from app.routing.policy import get_routing_policy_loader, RoutingPolicy, ProviderConfig
 from app.logger import get_logger
@@ -196,17 +197,19 @@ async def execute_with_fallback(
     model: Optional[str],
     fallback_chain: List[str],
     execute_fn,
+    endpoint: Optional[str] = None,
     *args,
     **kwargs
 ):
     """
-    Execute a function with fallback chain support.
+    Execute a function with fallback chain support and resilience features.
     
     Args:
         provider: Primary provider
         model: Model name
         fallback_chain: List of fallback providers
         execute_fn: Async function to execute (provider, model, *args, **kwargs)
+        endpoint: Endpoint name for timeout lookup
         *args, **kwargs: Additional arguments for execute_fn
     
     Returns:
@@ -215,18 +218,95 @@ async def execute_with_fallback(
     Raises:
         Last exception if all providers fail
     """
+    from app.resilience import (
+        execute_with_resilience,
+        execute_with_timeout,
+        check_degradation_conditions,
+        apply_degradation,
+    )
+    from app.resilience.policy import get_resilience_policy_loader
+    
+    policy_loader = get_resilience_policy_loader()
+    policy = policy_loader.get_policy()
+    
     providers_to_try = [provider] + fallback_chain
     last_exception = None
+    start_time = time.time()
     
     for attempt_provider in providers_to_try:
         try:
             logger.info("Attempting provider", provider=attempt_provider, model=model)
-            result = await execute_fn(attempt_provider, model, *args, **kwargs)
+            
+            # Check circuit breaker
+            from app.resilience.circuit_breaker import get_circuit_breaker_manager
+            cb_manager = get_circuit_breaker_manager()
+            cb_config = policy.circuit_breakers.get(attempt_provider)
+            if cb_config and policy.enable_circuit_breaker:
+                breaker = cb_manager.get_breaker(
+                    provider=attempt_provider,
+                    failure_threshold=cb_config.failure_threshold,
+                    success_threshold=cb_config.success_threshold,
+                    timeout=cb_config.timeout,
+                    half_open_max_calls=cb_config.half_open_max_calls,
+                )
+                if not breaker.can_attempt():
+                    logger.warn("Circuit breaker is open, skipping provider", provider=attempt_provider)
+                    continue
+            
+            # Execute with timeout and retry
+            async def _execute_with_timeout_and_retry():
+                return await execute_with_resilience(
+                    execute_fn,
+                    attempt_provider,
+                    strategy=policy.retry_strategies.get(attempt_provider),
+                    enable_retry=policy.enable_retry,
+                    attempt_provider,
+                    model,
+                    *args,
+                    **kwargs
+                )
+            
+            result = await execute_with_timeout(
+                _execute_with_timeout_and_retry,
+                provider=attempt_provider,
+                model=model,
+                endpoint=endpoint,
+            )
+            
+            # Record success in circuit breaker
+            if cb_config and policy.enable_circuit_breaker:
+                breaker.record_success()
+            
             if attempt_provider != provider:
                 logger.info("Fallback provider succeeded", original=provider, fallback=attempt_provider)
             return result
+            
         except Exception as e:
             last_exception = e
+            latency_ms = (time.time() - start_time) * 1000
+            
+            # Record failure in circuit breaker
+            if cb_config and policy.enable_circuit_breaker:
+                breaker.record_failure()
+            
+            # Check for graceful degradation
+            if policy.enable_graceful_degradation:
+                degradation = check_degradation_conditions(
+                    error=e,
+                    latency_ms=latency_ms,
+                    provider=attempt_provider,
+                    model=model,
+                )
+                if degradation:
+                    action, fallback_provider, fallback_model = degradation
+                    if fallback_provider and fallback_provider in providers_to_try:
+                        # Apply degradation and continue with fallback
+                        logger.info("Applying graceful degradation", 
+                                   action=action,
+                                   from_provider=attempt_provider,
+                                   to_provider=fallback_provider)
+                        continue
+            
             logger.warn("Provider failed, trying fallback", provider=attempt_provider, error=str(e))
             continue
     

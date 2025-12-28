@@ -37,6 +37,8 @@ services:
       - AGENT_POLICIES_PATH=/app/agents/policies
       # Routing policies path
       - ROUTING_POLICIES_PATH=/app/routing/policies
+      # Resilience policies path
+      - RESILIENCE_POLICIES_PATH=/app/resilience/policies
       
       # API Keys - set these from your .env file
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -60,6 +62,8 @@ services:
       - ./agents/policies:/app/agents/policies:ro
       # Routing policies
       - ./routing/policies:/app/routing/policies:ro
+      # Resilience policies
+      - ./resilience/policies:/app/resilience/policies:ro
       # Knowledge base documents
       - ./knowledge:/app/knowledge:ro
     depends_on:

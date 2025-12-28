@@ -17,6 +17,7 @@ RUN pip install -r /app/requirements.txt
 COPY app /app/app
 COPY agents /app/agents
 COPY routing /app/routing
+COPY resilience /app/resilience
 
 EXPOSE 8000
 

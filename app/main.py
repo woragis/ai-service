@@ -130,6 +130,16 @@ def reload_routing():
     return {"status": "success", "message": "Routing policies reloaded"}
 
 
+@app.post("/v1/resilience/reload")
+def reload_resilience():
+    """Reload resilience policies (hot reload)."""
+    from app.resilience.policy import get_resilience_policy_loader
+    policy_loader = get_resilience_policy_loader()
+    policy_loader.reload()
+    logger.info("Resilience policies reloaded")
+    return {"status": "success", "message": "Resilience policies reloaded"}
+
+
 def _apply_overrides(chain: Runnable, model_name: Optional[str], temperature: Optional[float]) -> Runnable:
     # For simple chains, we rebuild only if overrides provided
     if model_name or temperature is not None:
@@ -242,13 +252,14 @@ async def chat(req: ChatRequest):
         else:
             return str(result)
     
-    # Execute with fallback chain
+    # Execute with fallback chain and resilience
     try:
         output_text = await execute_with_fallback(
             provider,
             model,
             fallback_chain,
-            _execute_chat
+            _execute_chat,
+            endpoint="/v1/chat"
         )
     except Exception as e:
         logger.error("Chat execution failed", error=str(e), provider=provider, fallback_chain=fallback_chain)
