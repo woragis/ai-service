@@ -11,10 +11,21 @@
 ### Agent System
 - [Agent Policies](./AGENT_POLICIES.md) - YAML-based agent configuration
 - [Agent Policy Architecture](./AGENT_POLICY_ARCHITECTURE.md) - Technical architecture of agent system
+- [Agent Auto-Selection](./AGENT_AUTO_SELECTION.md) - Automatic agent selection based on query content
 
 ### Knowledge Base & RAG
 - [Vector DB Options](./VECTOR_DB_OPTIONS.md) - Supported vector databases and configuration
 - [RAG Implementation](./VECTOR_DB_OPTIONS.md) - Retrieval-Augmented Generation setup
+
+### LLM Providers
+- [LLM Providers](./LLM_PROVIDERS.md) - Supported providers (OpenAI, Anthropic, xAI, Cipher, Manus)
+- [Image Generation](./IMAGE_GENERATION.md) - Image generation with Cipher provider
+- [Streaming Chat](./STREAMING_CHAT.md) - Real-time streaming chat responses
+
+### Logging & Observability
+- [Structured Logging](./STRUCTURED_LOGGING.md) - JSON/text logging with trace IDs
+- [Prometheus Metrics](./PROMETHEUS_METRICS.md) - Metrics collection and monitoring
+- [Health Checks](./HEALTH_CHECKS.md) - Health check endpoints and monitoring
 
 ## Policy Systems
 
@@ -176,9 +187,11 @@ Key environment variables:
 
 | Feature | Status | Documentation |
 |---------|--------|---------------|
-| Multi-Provider LLM | ✅ | [Routing Policies](./ROUTING_POLICIES.md) |
-| Agent System | ✅ | [Agent Policies](./AGENT_POLICIES.md) |
+| Multi-Provider LLM | ✅ | [LLM Providers](./LLM_PROVIDERS.md), [Routing Policies](./ROUTING_POLICIES.md) |
+| Agent System | ✅ | [Agent Policies](./AGENT_POLICIES.md), [Agent Auto-Selection](./AGENT_AUTO_SELECTION.md) |
 | RAG | ✅ | [Vector DB Options](./VECTOR_DB_OPTIONS.md) |
+| Image Generation | ✅ | [Image Generation](./IMAGE_GENERATION.md) |
+| Streaming Chat | ✅ | [Streaming Chat](./STREAMING_CHAT.md) |
 | Circuit Breakers | ✅ | [Circuit Breakers](./CIRCUIT_BREAKERS.md) |
 | Retry Strategies | ✅ | [Retry & Resilience](./RETRY_RESILIENCE.md) |
 | Cost Control | ✅ | [Cost Control](./COST_CONTROL.md) |
@@ -186,6 +199,9 @@ Key environment variables:
 | Security | ✅ | [Security Policies](./SECURITY_POLICIES.md) |
 | Quality Checks | ✅ | [Quality Policies](./QUALITY_POLICIES.md) |
 | Feature Flags | ✅ | [Feature Flags](./FEATURE_FLAGS.md) |
+| Structured Logging | ✅ | [Structured Logging](./STRUCTURED_LOGGING.md) |
+| Prometheus Metrics | ✅ | [Prometheus Metrics](./PROMETHEUS_METRICS.md) |
+| Health Checks | ✅ | [Health Checks](./HEALTH_CHECKS.md) |
 | Kubernetes | ✅ | [Kubernetes Deployment](./KUBERNETES_DEPLOYMENT.md) |
 | Monitoring | ✅ | [SLO/SLI](./slo-sli.md), [Alerting](./alerting.md) |
 | Tracing | ✅ | [Distributed Tracing](./distributed-tracing.md) |
