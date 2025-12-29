@@ -27,6 +27,11 @@
 - [Prometheus Metrics](./PROMETHEUS_METRICS.md) - Metrics collection and monitoring
 - [Health Checks](./HEALTH_CHECKS.md) - Health check endpoints and monitoring
 
+### Extensibility
+- [Plugin System](./PLUGIN_SYSTEM.md) - Custom vector DB and file storage plugins
+- [CORS Configuration](./CORS_CONFIGURATION.md) - Cross-Origin Resource Sharing setup
+- [Request Overrides](./REQUEST_OVERRIDES.md) - Per-request model and temperature overrides
+
 ## Policy Systems
 
 ### 1. Model Selection & Routing
@@ -202,6 +207,9 @@ Key environment variables:
 | Structured Logging | ✅ | [Structured Logging](./STRUCTURED_LOGGING.md) |
 | Prometheus Metrics | ✅ | [Prometheus Metrics](./PROMETHEUS_METRICS.md) |
 | Health Checks | ✅ | [Health Checks](./HEALTH_CHECKS.md) |
+| Plugin System | ✅ | [Plugin System](./PLUGIN_SYSTEM.md) |
+| CORS Support | ✅ | [CORS Configuration](./CORS_CONFIGURATION.md) |
+| Request Overrides | ✅ | [Request Overrides](./REQUEST_OVERRIDES.md) |
 | Kubernetes | ✅ | [Kubernetes Deployment](./KUBERNETES_DEPLOYMENT.md) |
 | Monitoring | ✅ | [SLO/SLI](./slo-sli.md), [Alerting](./alerting.md) |
 | Tracing | ✅ | [Distributed Tracing](./distributed-tracing.md) |
