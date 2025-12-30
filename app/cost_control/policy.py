@@ -54,7 +54,7 @@ class CostControlPolicy:
 class CostControlPolicyLoader:
     """Loads and manages cost control policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/cost_control/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[CostControlPolicy] = None
@@ -112,7 +112,7 @@ def get_cost_control_policy_loader() -> CostControlPolicyLoader:
     """Get the global cost control policy loader instance."""
     global _policy_loader
     if _policy_loader is None:
-        policies_path = os.getenv("COST_CONTROL_POLICIES_PATH", "/app/cost_control/policies")
+        policies_path = os.getenv("COST_CONTROL_POLICIES_PATH", "/app/policies")
         _policy_loader = CostControlPolicyLoader(policies_path=policies_path)
     return _policy_loader
 

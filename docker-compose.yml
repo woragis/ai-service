@@ -35,8 +35,9 @@ services:
       - FILE_STORAGE_TYPE=local
       - FILE_STORAGE_BASE_PATH=/app/knowledge
       
-      # Agent policies path
-      - AGENT_POLICIES_PATH=/app/agents/policies
+      # Policies path (unified structure)
+      - POLICIES_PATH=/app/policies
+      - AGENT_POLICIES_PATH=/app/policies/agents
       
       # API Keys (set via .env or secrets)
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -49,8 +50,8 @@ services:
       - CORS_ENABLED=true
       - CORS_ALLOWED_ORIGINS=*
     volumes:
-      # Agent policies
-      - ./agents/policies:/app/agents/policies:ro
+      # Policies (unified structure)
+      - ./policies:/app/policies:ro
       # Knowledge base documents
       - ./knowledge:/app/knowledge:ro
       # User plugins (optional)

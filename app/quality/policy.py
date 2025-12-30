@@ -68,7 +68,7 @@ class QualityPolicy:
 class QualityPolicyLoader:
     """Loads and manages quality policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/quality/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[QualityPolicy] = None
@@ -127,7 +127,7 @@ def get_quality_policy_loader() -> QualityPolicyLoader:
     """Get the global quality policy loader instance."""
     global _policy_loader
     if _policy_loader is None:
-        policies_path = os.getenv("QUALITY_POLICIES_PATH", "/app/quality/policies")
+        policies_path = os.getenv("QUALITY_POLICIES_PATH", "/app/policies")
         _policy_loader = QualityPolicyLoader(policies_path=policies_path)
     return _policy_loader
 

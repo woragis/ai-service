@@ -82,7 +82,7 @@ class RoutingPolicy:
 class RoutingPolicyLoader:
     """Loads and validates routing policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/routing/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[RoutingPolicy] = None
@@ -223,7 +223,7 @@ def get_routing_policy_loader() -> RoutingPolicyLoader:
     global _policy_loader
     
     if _policy_loader is None:
-        policies_path = os.getenv("ROUTING_POLICIES_PATH", "/app/routing/policies")
+        policies_path = os.getenv("ROUTING_POLICIES_PATH", "/app/policies")
         _policy_loader = RoutingPolicyLoader(policies_path=policies_path)
     
     return _policy_loader

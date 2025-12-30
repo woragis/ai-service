@@ -84,7 +84,7 @@ class ResiliencePolicy:
 class ResiliencePolicyLoader:
     """Loads and validates resilience policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/resilience/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[ResiliencePolicy] = None
@@ -229,7 +229,7 @@ def get_resilience_policy_loader() -> ResiliencePolicyLoader:
     global _policy_loader
     
     if _policy_loader is None:
-        policies_path = os.getenv("RESILIENCE_POLICIES_PATH", "/app/resilience/policies")
+        policies_path = os.getenv("RESILIENCE_POLICIES_PATH", "/app/policies")
         _policy_loader = ResiliencePolicyLoader(policies_path=policies_path)
     
     return _policy_loader

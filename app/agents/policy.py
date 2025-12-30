@@ -55,7 +55,7 @@ class AgentPolicy:
 class PolicyLoader:
     """Loads and validates agent policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/agents/policies"):
+    def __init__(self, policies_path: str = "/app/policies/agents"):
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policies: Dict[str, AgentPolicy] = {}
@@ -155,7 +155,7 @@ def get_policy_loader() -> PolicyLoader:
     global _policy_loader
     
     if _policy_loader is None:
-        policies_path = os.getenv("AGENT_POLICIES_PATH", "/app/agents/policies")
+        policies_path = os.getenv("AGENT_POLICIES_PATH", "/app/policies/agents")
         _policy_loader = PolicyLoader(policies_path=policies_path)
     
     return _policy_loader

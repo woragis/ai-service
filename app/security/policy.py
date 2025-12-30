@@ -90,7 +90,7 @@ class SecurityPolicy:
 class SecurityPolicyLoader:
     """Loads and manages security policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/security/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[SecurityPolicy] = None
@@ -174,7 +174,7 @@ def get_security_policy_loader() -> SecurityPolicyLoader:
     """Get the global security policy loader instance."""
     global _policy_loader
     if _policy_loader is None:
-        policies_path = os.getenv("SECURITY_POLICIES_PATH", "/app/security/policies")
+        policies_path = os.getenv("SECURITY_POLICIES_PATH", "/app/policies")
         _policy_loader = SecurityPolicyLoader(policies_path=policies_path)
     return _policy_loader
 

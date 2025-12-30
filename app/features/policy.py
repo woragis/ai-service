@@ -56,7 +56,7 @@ class FeaturePolicy:
 class FeaturePolicyLoader:
     """Loads and manages feature flag policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/features/policies"):
+    def __init__(self, policies_path: str = "/app/policies")
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[FeaturePolicy] = None
@@ -118,7 +118,7 @@ def get_feature_policy_loader() -> FeaturePolicyLoader:
     """Get the global feature policy loader instance."""
     global _policy_loader
     if _policy_loader is None:
-        policies_path = os.getenv("FEATURE_POLICIES_PATH", "/app/features/policies")
+        policies_path = os.getenv("FEATURE_POLICIES_PATH", "/app/policies")
         _policy_loader = FeaturePolicyLoader(policies_path=policies_path)
     return _policy_loader
 
