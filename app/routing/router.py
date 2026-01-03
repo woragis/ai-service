@@ -264,9 +264,7 @@ async def execute_with_fallback(
                     attempt_provider,
                     strategy=policy.retry_strategies.get(attempt_provider),
                     enable_retry=policy.enable_retry,
-                    attempt_provider,
-                    model,
-                    *args,
+                    *(model, *args),
                     **kwargs
                 )
             
