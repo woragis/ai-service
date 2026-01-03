@@ -14,15 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
+# Copy application code
 COPY app /app/app
-COPY agents /app/agents
-COPY routing /app/routing
-COPY resilience /app/resilience
-COPY cost_control /app/cost_control
-COPY caching /app/caching
-COPY security /app/security
-COPY quality /app/quality
-COPY features /app/features
+
+# Copy policies directory (unified structure)
+COPY policies /app/policies
+
+# Copy knowledge base directory (if exists)
+COPY knowledge /app/knowledge
 
 EXPOSE 8000
 

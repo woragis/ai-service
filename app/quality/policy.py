@@ -68,7 +68,7 @@ class QualityPolicy:
 class QualityPolicyLoader:
     """Loads and manages quality policies from YAML files."""
     
-    def __init__(self, policies_path: str = "/app/policies")
+    def __init__(self, policies_path: str = "/app/policies"):
         self.policies_path = Path(policies_path)
         self.logger = get_logger()
         self._policy: Optional[QualityPolicy] = None
