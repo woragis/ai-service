@@ -54,7 +54,7 @@ class TestHealthCheck:
 class TestPickAgentAuto:
     """Tests for automatic agent selection logic via API."""
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -78,7 +78,7 @@ class TestPickAgentAuto:
         data = response.json()
         assert data["agent"] == "economist"
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -103,7 +103,7 @@ class TestPickAgentAuto:
         # Should pick strategist (strategy keyword triggers it)
         assert data["agent"] == "strategist"
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -127,7 +127,7 @@ class TestPickAgentAuto:
         data = response.json()
         assert data["agent"] == "entrepreneur"
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -155,7 +155,7 @@ class TestPickAgentAuto:
 class TestChatEndpoint:
     """Tests for POST /v1/chat endpoint."""
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -199,7 +199,7 @@ class TestChatEndpoint:
             # But if the agent is valid enum but not found, it returns 404
             assert response.status_code in [404, 422]
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -287,7 +287,7 @@ class TestChatEndpoint:
         messages = call_kwargs.get('messages', [])
         assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in messages)
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
@@ -449,7 +449,7 @@ class TestChatStream:
             response = client.post("/v1/chat", json=request_data)
             assert response.status_code == 404
 
-    @patch('app.main.execute_with_fallback')
+    @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
