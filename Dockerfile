@@ -6,13 +6,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install only essential build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     curl \
+    gcc \
+    g++ \
  && rm -rf /var/lib/apt/lists/*
 
+# Copy and install Python dependencies
 COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/requirements.txt
+
+# Clean up pip cache and temporary files
+RUN pip cache purge || true
 
 # Copy application code
 COPY app /app/app

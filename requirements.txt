@@ -23,10 +23,12 @@ opentelemetry-instrumentation-requests==0.41b0
 
 # Knowledge base dependencies
 qdrant-client==1.7.0
-chromadb==0.4.22
 boto3==1.34.0  # For S3 file storage
-sentence-transformers>=2.7.0  # For embeddings in RAG (2.2.2 incompatible with newer huggingface_hub)
 PyYAML==6.0.1  # For YAML policy parsing
+
+# Optional dependencies (only install if needed):
+# chromadb==0.4.22  # Optional: Only needed if using ChromaDB instead of Qdrant (pulls in large CUDA deps)
+# sentence-transformers>=2.7.0  # Optional: Only needed for semantic caching (pulls in large ML deps)
 
 # Note: Test dependencies moved to requirements-test.txt
 # Install with: pip install -r requirements-test.txt
