@@ -23,7 +23,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ai-service
-    restart: on-failure:3
+    restart: on-failure
     ports:
       - "8000:8000"
     environment:
