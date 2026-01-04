@@ -12,8 +12,10 @@ from app.main import app
 class TestListAgents:
     """Tests for GET /v1/agents endpoint."""
 
-    def test_list_agents(self, client):
+    @patch('app.main.get_agent_names')
+    def test_list_agents(self, mock_get_names, client):
         """Test listing available agents."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         response = client.get("/v1/agents")
         assert response.status_code == 200
         data = response.json()
@@ -357,8 +359,10 @@ class TestChatStream:
         assert response.headers["content-type"] == "application/x-ndjson"
 
     @patch('app.main.CipherClient')
-    def test_chat_stream_cipher(self, mock_cipher_class, client):
+    @patch('app.main.build_system_message')
+    def test_chat_stream_cipher(self, mock_build_system, mock_cipher_class, client):
         """Test streaming with Cipher provider."""
+        mock_build_system.return_value = "You are a startup advisor."
         mock_client = Mock()
         mock_client.chat = AsyncMock(return_value="Full response")
         mock_cipher_class.from_env.return_value = mock_client
@@ -398,6 +402,7 @@ class TestChatStream:
         
         with patch('app.main.make_model') as mock_make, \
              patch('app.main.build_agent_with_model', return_value=None), \
+             patch('app.main.get_agent_names', return_value=["economist", "startup"]), \
              patch('app.main.get_logger'):
             mock_make.return_value = mock_chat_model
             response = client.post("/v1/chat", json=request_data)
@@ -449,6 +454,7 @@ class TestChatStream:
         
         with patch('app.main.make_model') as mock_make, \
              patch('app.main.build_agent_with_model', return_value=None), \
+             patch('app.main.get_agent_names', return_value=["economist", "startup"]), \
              patch('app.main.get_logger'):
             mock_make.return_value = mock_chat_model
             response = client.post("/v1/chat/stream", json=request_data)

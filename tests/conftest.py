@@ -68,3 +68,55 @@ def reset_env():
     # Restore original values
     os.environ.clear()
     os.environ.update(original_env)
+
+
+@pytest.fixture(autouse=True)
+def mock_agent_policies():
+    """Mock agent policies for all tests."""
+    from app.agents.policy import AgentPolicy, KnowledgeBaseConfig, BehaviorConfig
+    
+    policies = {
+        "startup": AgentPolicy(
+            version="1.0.0",
+            name="startup",
+            display_name="Startup Advisor Agent",
+            description="A startup advisor and mentor",
+            personality="A startup advisor and mentor. Blend product thinking, growth, fundraising, and execution advice tailored to stage.",
+            knowledge_base=KnowledgeBaseConfig(enabled=False),
+            behavior=BehaviorConfig(temperature=0.3, max_tokens=2000),
+        ),
+        "economist": AgentPolicy(
+            version="1.0.0",
+            name="economist",
+            display_name="Economist Agent",
+            description="An economist advisor",
+            personality="An economist advisor providing economic insights.",
+            knowledge_base=KnowledgeBaseConfig(enabled=False),
+            behavior=BehaviorConfig(temperature=0.3),
+        ),
+        "strategist": AgentPolicy(
+            version="1.0.0",
+            name="strategist",
+            display_name="Strategist Agent",
+            description="A strategist advisor",
+            personality="A strategist advisor providing strategic insights.",
+            knowledge_base=KnowledgeBaseConfig(enabled=False),
+            behavior=BehaviorConfig(temperature=0.3),
+        ),
+        "entrepreneur": AgentPolicy(
+            version="1.0.0",
+            name="entrepreneur",
+            display_name="Entrepreneur Agent",
+            description="An entrepreneur advisor",
+            personality="An entrepreneur advisor providing business insights.",
+            knowledge_base=KnowledgeBaseConfig(enabled=False),
+            behavior=BehaviorConfig(temperature=0.3),
+        ),
+    }
+    
+    with patch('app.agents.registry.get_policy_loader') as mock_get_loader:
+        loader = Mock()
+        loader.list_agents.return_value = sorted(policies.keys())
+        loader.get_policy = lambda name: policies.get(name.lower())
+        mock_get_loader.return_value = loader
+        yield
