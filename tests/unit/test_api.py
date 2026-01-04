@@ -54,100 +54,119 @@ class TestHealthCheck:
 class TestPickAgentAuto:
     """Tests for automatic agent selection logic via API."""
 
-    def test_pick_agent_economist(self, client):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_pick_agent_economist(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking economist agent via auto selection."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "auto",
             "input": "What are the market trends and inflation rates?",
             "provider": "openai"
         }
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["agent"] == "economist"
+        
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["agent"] == "economist"
 
-    def test_pick_agent_strategist(self, client, mock_chat_model):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_pick_agent_strategist(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking strategist agent via auto selection (not economist)."""
-        # Use input that triggers strategist but NOT economist
-        # Use "strategy" and "positioning" keywords, but avoid "market" to not trigger economist
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "auto",
             "input": "What is our competitive positioning and strategy?",
             "provider": "openai"
         }
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_make.return_value = mock_chat_model
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            # Should pick strategist (strategy keyword triggers it)
-            assert data["agent"] == "strategist"
+        
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
+        # Should pick strategist (strategy keyword triggers it)
+        assert data["agent"] == "strategist"
 
-    def test_pick_agent_entrepreneur(self, client):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_pick_agent_entrepreneur(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking entrepreneur agent via auto selection."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "auto",
             "input": "How do I build an MVP and validate my idea quickly?",
             "provider": "openai"
         }
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["agent"] == "entrepreneur"
+        
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["agent"] == "entrepreneur"
 
-    def test_pick_agent_startup_default(self, client):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_pick_agent_startup_default(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test default to startup agent via auto selection."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "auto",
             "input": "General startup question",
             "provider": "openai"
         }
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["agent"] == "startup"
+        
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["agent"] == "startup"
 
 
 class TestChatEndpoint:
     """Tests for POST /v1/chat endpoint."""
 
-    @patch('app.main.make_model')
-    @patch('app.main.build_agent_with_model')
-    @patch('app.main.get_logger')
-    def test_chat_success(self, mock_logger, mock_build_agent, mock_make_model, client, mock_chat_model):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_chat_success(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test successful chat request."""
-        # Setup mocks
-        mock_make_model.return_value = mock_chat_model
-        mock_chain = Mock()
-        mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Test response"))
-        mock_build_agent.return_value = mock_chain
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Test response")
         
         request_data = {
             "agent": "startup",
@@ -180,30 +199,42 @@ class TestChatEndpoint:
             # But if the agent is valid enum but not found, it returns 404
             assert response.status_code in [404, 422]
 
-    def test_chat_auto_agent(self, client):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_chat_auto_agent(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat with auto agent selection."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "auto",
             "input": "What are the market trends?",
             "provider": "openai"
         }
         
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            # Should have selected economist based on keywords
-            data = response.json()
-            assert data["agent"] == "economist"
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        # Should have selected economist based on keywords
+        data = response.json()
+        assert data["agent"] == "economist"
 
     @patch('app.main.CipherClient')
-    def test_chat_cipher_provider(self, mock_cipher_class, client):
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.build_system_message')
+    def test_chat_cipher_provider(self, mock_build_system, mock_pii, mock_content, mock_injection, mock_cipher_class, client):
         """Test chat with Cipher provider."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_build_system.return_value = "You are a startup advisor."
         mock_client = Mock()
         mock_client.chat = AsyncMock(return_value="Cipher response")
         mock_cipher_class.from_env.return_value = mock_client
@@ -256,8 +287,19 @@ class TestChatEndpoint:
         messages = call_kwargs.get('messages', [])
         assert any(msg.get("role") == "system" and "Be concise" in msg.get("content", "") for msg in messages)
 
-    def test_chat_with_system_message(self, client):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_chat_with_system_message(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat with additional system message."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = Mock(content="Response")
+        
         request_data = {
             "agent": "startup",
             "input": "Hello",
@@ -265,15 +307,8 @@ class TestChatEndpoint:
             "provider": "openai"
         }
         
-        with patch('app.main.make_model'), \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_chain = Mock()
-            mock_chain.ainvoke = AsyncMock(return_value=Mock(content="Response"))
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
 
     def test_chat_invalid_provider(self, client):
         """Test chat with invalid provider."""
@@ -377,16 +412,22 @@ class TestChatStream:
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/x-ndjson"
 
-    def test_chat_model_creation_error(self, client):
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    def test_chat_model_creation_error(self, mock_pii, mock_content, mock_injection, client):
         """Test chat endpoint with model creation error."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        
         request_data = {
             "agent": "startup",
             "input": "Hello",
             "provider": "openai"
         }
         
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.get_logger'):
+        with patch('app.main.make_model') as mock_make:
             mock_make.side_effect = ValueError("Invalid model")
             response = client.post("/v1/chat", json=request_data)
             assert response.status_code == 400
@@ -408,38 +449,46 @@ class TestChatStream:
             response = client.post("/v1/chat", json=request_data)
             assert response.status_code == 404
 
-    def test_chat_result_extraction_string(self, client, mock_chat_model):
+    @patch('app.main.execute_with_fallback')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.is_rag_enabled')
+    def test_chat_result_extraction_string(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat result extraction when result is a string."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_rag.return_value = False
+        mock_execute.return_value = "String response"
+        
         request_data = {
             "agent": "startup",
             "input": "Hello",
             "provider": "openai"
         }
         
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.build_agent_with_model') as mock_build, \
-             patch('app.main.get_logger'):
-            mock_make.return_value = mock_chat_model
-            mock_chain = Mock()
-            # Return a string instead of AIMessage
-            mock_chain.ainvoke = AsyncMock(return_value="String response")
-            mock_build.return_value = mock_chain
-            
-            response = client.post("/v1/chat", json=request_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["output"] == "String response"
+        response = client.post("/v1/chat", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["output"] == "String response"
 
-    def test_stream_model_creation_error(self, client):
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    def test_stream_model_creation_error(self, mock_pii, mock_content, mock_injection, client):
         """Test streaming endpoint with model creation error."""
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        
         request_data = {
             "agent": "startup",
             "input": "Hello",
             "provider": "openai"
         }
         
-        with patch('app.main.make_model') as mock_make, \
-             patch('app.main.get_logger'):
+        with patch('app.main.make_model') as mock_make:
             mock_make.side_effect = ValueError("Invalid model")
             response = client.post("/v1/chat/stream", json=request_data)
             assert response.status_code == 400

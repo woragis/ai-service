@@ -259,13 +259,15 @@ async def execute_with_fallback(
             
             # Execute with timeout and retry
             async def _execute_with_timeout_and_retry():
+                # Remove strategy and enable_retry from kwargs if present to avoid conflicts
+                exec_kwargs = {k: v for k, v in kwargs.items() if k not in ('strategy', 'enable_retry')}
                 return await execute_with_resilience(
                     execute_fn,
                     attempt_provider,
                     strategy=policy.retry_strategies.get(attempt_provider),
                     enable_retry=policy.enable_retry,
                     *(model, *args),
-                    **kwargs
+                    **exec_kwargs
                 )
             
             result = await execute_with_timeout(

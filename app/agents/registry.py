@@ -62,6 +62,13 @@ def get_agent_names() -> list[str]:
 
 def get_agent(name: str) -> Runnable | None:
     """Get agent chain by name (uses default model)."""
+    # Trim whitespace from agent name
+    name = name.strip() if name else name
+    # Check if agent exists before creating model
+    policy_loader = get_policy_loader()
+    policy = policy_loader.get_policy(name.lower())
+    if not policy:
+        return None
     return build_agent_with_model(name, _model())
 
 
