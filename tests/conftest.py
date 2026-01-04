@@ -114,9 +114,14 @@ def mock_agent_policies():
         ),
     }
     
-    with patch('app.agents.registry.get_policy_loader') as mock_get_loader:
+    with patch('app.agents.registry.get_policy_loader') as mock_get_loader, \
+         patch('app.main.get_agent_names') as mock_get_names, \
+         patch('app.agents.get_agent_names') as mock_get_names_module:
         loader = Mock()
-        loader.list_agents.return_value = sorted(policies.keys())
+        agent_list = sorted(policies.keys())
+        loader.list_agents.return_value = agent_list
         loader.get_policy = lambda name: policies.get(name.lower())
         mock_get_loader.return_value = loader
+        mock_get_names.return_value = agent_list
+        mock_get_names_module.return_value = agent_list
         yield
