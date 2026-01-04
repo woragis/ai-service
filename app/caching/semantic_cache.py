@@ -8,7 +8,10 @@ import hashlib
 from typing import Optional, Dict, Any, Tuple, List
 from threading import Lock
 import numpy as np
-from sentence_transformers import SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None  # Optional dependency
 from app.logger import get_logger
 from app.caching.policy import get_caching_policy_loader
 from app.caching.cache_store import CacheEntry
