@@ -285,8 +285,18 @@ class TestChatEndpoint:
             assert "Unknown agent" in response.json()["detail"]
 
     @patch('app.main.CipherClient')
-    def test_chat_cipher_provider_with_system(self, mock_cipher_class, client):
+    @patch('app.main.build_system_message')
+    @patch('app.main.check_prompt_injection')
+    @patch('app.main.check_content_filter')
+    @patch('app.main.check_pii')
+    @patch('app.main.get_agent_names')
+    def test_chat_cipher_provider_with_system(self, mock_get_names, mock_pii, mock_content, mock_injection, mock_build_system, mock_cipher_class, client):
         """Test cipher provider with system message."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
+        mock_injection.return_value = (True, None)
+        mock_content.return_value = (True, None)
+        mock_pii.return_value = (True, None, {})
+        mock_build_system.return_value = "You are a startup advisor."
         mock_client = Mock()
         mock_client.chat = AsyncMock(return_value="Cipher response")
         mock_cipher_class.from_env.return_value = mock_client
