@@ -5,7 +5,7 @@ Detects and masks sensitive information like emails, phone numbers, SSNs, etc.
 """
 
 import re
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 from app.logger import get_logger
 from app.security.policy import get_security_policy_loader
 
