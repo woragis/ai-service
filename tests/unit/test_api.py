@@ -59,8 +59,10 @@ class TestPickAgentAuto:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_pick_agent_economist(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_pick_agent_economist(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking economist agent via auto selection."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -83,8 +85,10 @@ class TestPickAgentAuto:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_pick_agent_strategist(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_pick_agent_strategist(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking strategist agent via auto selection (not economist)."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -108,8 +112,10 @@ class TestPickAgentAuto:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_pick_agent_entrepreneur(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_pick_agent_entrepreneur(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test picking entrepreneur agent via auto selection."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -132,8 +138,10 @@ class TestPickAgentAuto:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_pick_agent_startup_default(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_pick_agent_startup_default(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test default to startup agent via auto selection."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -160,8 +168,10 @@ class TestChatEndpoint:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_chat_success(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_success(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test successful chat request."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -182,8 +192,10 @@ class TestChatEndpoint:
         assert data["agent"] == "startup"
         assert data["output"] == "Test response"
 
-    def test_chat_invalid_agent(self, client, mock_chat_model):
+    @patch('app.main.get_agent_names')
+    def test_chat_invalid_agent(self, mock_get_names, client, mock_chat_model):
         """Test chat with invalid agent name."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         request_data = {
             "agent": "nonexistent",
             "input": "Hello",
@@ -195,17 +207,18 @@ class TestChatEndpoint:
              patch('app.main.get_logger'):
             mock_make.return_value = mock_chat_model
             response = client.post("/v1/chat", json=request_data)
-            # FastAPI validates the request first, so invalid enum values return 422
-            # But if the agent is valid enum but not found, it returns 404
-            assert response.status_code in [404, 422]
+            # Should return 422 for invalid agent name
+            assert response.status_code == 422
 
     @patch('app.main.execute_with_fallback', new_callable=AsyncMock)
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_chat_auto_agent(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_auto_agent(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat with auto agent selection."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -229,8 +242,10 @@ class TestChatEndpoint:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.build_system_message')
-    def test_chat_cipher_provider(self, mock_build_system, mock_pii, mock_content, mock_injection, mock_cipher_class, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_cipher_provider(self, mock_get_names, mock_build_system, mock_pii, mock_content, mock_injection, mock_cipher_class, client):
         """Test chat with Cipher provider."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -292,8 +307,10 @@ class TestChatEndpoint:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_chat_with_system_message(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_with_system_message(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat with additional system message."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -415,8 +432,10 @@ class TestChatStream:
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
-    def test_chat_model_creation_error(self, mock_pii, mock_content, mock_injection, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_model_creation_error(self, mock_get_names, mock_pii, mock_content, mock_injection, client):
         """Test chat endpoint with model creation error."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -433,8 +452,10 @@ class TestChatStream:
             assert response.status_code == 400
             assert "Invalid model" in response.json()["detail"]
 
-    def test_chat_invalid_agent_404(self, client, mock_chat_model):
+    @patch('app.main.get_agent_names')
+    def test_chat_invalid_agent_404(self, mock_get_names, client, mock_chat_model):
         """Test chat with invalid agent returns 404."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         request_data = {
             "agent": "startup",
             "input": "Hello",
@@ -443,7 +464,6 @@ class TestChatStream:
         
         with patch('app.main.make_model') as mock_make, \
              patch('app.main.build_agent_with_model', return_value=None), \
-             patch('app.main.get_agent_names', return_value=["economist", "startup"]), \
              patch('app.main.get_logger'):
             mock_make.return_value = mock_chat_model
             response = client.post("/v1/chat", json=request_data)
@@ -454,8 +474,10 @@ class TestChatStream:
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
     @patch('app.main.is_rag_enabled')
-    def test_chat_result_extraction_string(self, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_result_extraction_string(self, mock_get_names, mock_rag, mock_pii, mock_content, mock_injection, mock_execute, client):
         """Test chat result extraction when result is a string."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -476,8 +498,10 @@ class TestChatStream:
     @patch('app.main.check_prompt_injection')
     @patch('app.main.check_content_filter')
     @patch('app.main.check_pii')
-    def test_stream_model_creation_error(self, mock_pii, mock_content, mock_injection, client):
+    @patch('app.main.get_agent_names')
+    def test_stream_model_creation_error(self, mock_get_names, mock_pii, mock_content, mock_injection, client):
         """Test streaming endpoint with model creation error."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         mock_injection.return_value = (True, None)
         mock_content.return_value = (True, None)
         mock_pii.return_value = (True, None, {})
@@ -493,8 +517,10 @@ class TestChatStream:
             response = client.post("/v1/chat/stream", json=request_data)
             assert response.status_code == 400
 
-    def test_stream_invalid_agent(self, client, mock_chat_model):
+    @patch('app.main.get_agent_names')
+    def test_stream_invalid_agent(self, mock_get_names, client, mock_chat_model):
         """Test streaming with invalid agent returns 404."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         request_data = {
             "agent": "startup",
             "input": "Hello",
@@ -503,7 +529,6 @@ class TestChatStream:
         
         with patch('app.main.make_model') as mock_make, \
              patch('app.main.build_agent_with_model', return_value=None), \
-             patch('app.main.get_agent_names', return_value=["economist", "startup"]), \
              patch('app.main.get_logger'):
             mock_make.return_value = mock_chat_model
             response = client.post("/v1/chat/stream", json=request_data)

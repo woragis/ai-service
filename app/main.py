@@ -325,12 +325,18 @@ async def chat(req: ChatRequest):
     
     # Validate agent name early (before processing)
     try:
-        valid_agents = get_agent_names() + ["auto"]
+        agent_names = get_agent_names()
+        # Ensure it's a list (handle case where mock returns Mock object)
+        if not isinstance(agent_names, list):
+            agent_names = []
+        valid_agents = agent_names + ["auto"]
         if req.agent not in valid_agents:
             raise HTTPException(
                 status_code=422,
                 detail=f"Invalid agent '{req.agent}'. Valid agents: {', '.join(valid_agents)}"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         # If get_agent_names fails, still try to process but will fail later with 404
         logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
@@ -632,12 +638,18 @@ async def chat_stream(req: ChatStreamRequest):
     
     # Validate agent name early (before processing)
     try:
-        valid_agents = get_agent_names() + ["auto"]
+        agent_names = get_agent_names()
+        # Ensure it's a list (handle case where mock returns Mock object)
+        if not isinstance(agent_names, list):
+            agent_names = []
+        valid_agents = agent_names + ["auto"]
         if req.agent not in valid_agents:
             raise HTTPException(
                 status_code=422,
                 detail=f"Invalid agent '{req.agent}'. Valid agents: {', '.join(valid_agents)}"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         # If get_agent_names fails, still try to process but will fail later with 404
         logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
