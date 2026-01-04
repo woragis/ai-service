@@ -265,12 +265,16 @@ class TestChatEndpoint:
         data = response.json()
         assert data["output"] == "Cipher response"
 
-    def test_chat_cipher_provider_invalid_agent(self, client):
+    @patch('app.main.get_agent_names')
+    def test_chat_cipher_provider_invalid_agent(self, mock_get_names, client):
         """Test cipher provider with invalid agent (when build_system_message returns None)."""
+        mock_get_names.return_value = ["economist", "entrepreneur", "startup", "strategist"]
         # Mock build_system_message to return None to trigger the 404 path
         with patch('app.main.CipherClient') as mock_cipher_class, \
              patch('app.main.build_system_message', return_value=None), \
-             patch('app.main.get_agent_names', return_value=["startup", "economist"]):
+             patch('app.main.check_prompt_injection', return_value=(True, None)), \
+             patch('app.main.check_content_filter', return_value=(True, None)), \
+             patch('app.main.check_pii', return_value=(True, None, {})):
             request_data = {
                 "agent": "startup",  # Valid enum, but build_system_message returns None
                 "input": "Hello",
