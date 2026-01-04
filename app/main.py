@@ -629,6 +629,19 @@ async def chat_stream(req: ChatStreamRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
+    
+    # Validate agent name early (before processing)
+    try:
+        valid_agents = get_agent_names() + ["auto"]
+        if req.agent not in valid_agents:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid agent '{req.agent}'. Valid agents: {', '.join(valid_agents)}"
+            )
+    except Exception as e:
+        # If get_agent_names fails, still try to process but will fail later with 404
+        logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
+    
     # Select provider and model using routing policies
     cost_mode = os.getenv("COST_MODE", "balanced")
     selected_provider, selected_model, fallback_chain = select_provider_and_model(
