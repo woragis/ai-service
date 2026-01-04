@@ -322,6 +322,19 @@ async def chat(req: ChatRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
+    
+    # Validate agent name early (before processing)
+    try:
+        valid_agents = get_agent_names() + ["auto"]
+        if req.agent not in valid_agents:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid agent '{req.agent}'. Valid agents: {', '.join(valid_agents)}"
+            )
+    except Exception as e:
+        # If get_agent_names fails, still try to process but will fail later with 404
+        logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
+    
     # Simple heuristic for auto agent selection
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
