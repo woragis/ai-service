@@ -36,6 +36,10 @@ class SemanticCache:
         """Load configuration from policy."""
         policy = get_caching_policy_loader().get_policy()
         if policy.semantic_similarity.enabled:
+            if SentenceTransformer is None:
+                self.logger.warn("Semantic caching disabled: sentence-transformers not installed")
+                self._embedding_model = None
+                return
             try:
                 self._embedding_model = SentenceTransformer(
                     policy.semantic_similarity.embedding_model
