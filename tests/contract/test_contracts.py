@@ -161,8 +161,10 @@ class TestCostControlContracts:
         }
 
         # Validate calculations
-        assert budget_response["spent"] + budget_response["remaining"] == budget_response["total_budget"]
-        assert budget_response["percentage_used"] == (budget_response["spent"] / budget_response["total_budget"]) * 100
+        assert budget_response["spent"] + \
+            budget_response["remaining"] == budget_response["total_budget"]
+        assert budget_response["percentage_used"] == (
+            budget_response["spent"] / budget_response["total_budget"]) * 100
 
 
 class TestCachingContracts:

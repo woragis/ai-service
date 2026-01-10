@@ -14,7 +14,7 @@ import json
 from app.agents import get_agent_names, get_agent, build_agent_with_model, build_system_message, get_rag_context
 from app.providers import make_model, CipherClient
 from app.routing import select_provider_and_model, execute_with_fallback
-from app.config import settings
+from app.config import settings, validate_required_env_vars
 from app.cost_tracking import cost_tracker, estimate_request_cost
 from app.cost_control import (
     validate_token_limits,
@@ -49,6 +49,9 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 
 load_dotenv()
+
+# Validate required environment variables first
+validate_required_env_vars()
 
 # Configure structured logging
 env = os.getenv("ENV", "development")

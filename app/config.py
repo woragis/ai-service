@@ -1,10 +1,38 @@
 import os
+import sys
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
 
 # Load variables from .env if present
 load_dotenv()
+
+
+def validate_required_env_vars() -> None:
+    """Validate required environment variables on startup."""
+    # AI service requires at least one LLM provider API key
+    has_provider = (
+        os.getenv("OPENAI_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+        or os.getenv("XAI_API_KEY")
+        or os.getenv("MANUS_API_KEY")
+        or os.getenv("CIPHER_API_KEY")
+        or os.getenv("REPLICATE_API_KEY")
+    )
+
+    if not has_provider:
+        print("❌ FATAL: Missing required environment variables:")
+        print("  At least one of the following must be set:")
+        print("  - OPENAI_API_KEY")
+        print("  - ANTHROPIC_API_KEY")
+        print("  - XAI_API_KEY")
+        print("  - MANUS_API_KEY")
+        print("  - CIPHER_API_KEY")
+        print("  - REPLICATE_API_KEY")
+        print("\nPlease set at least one provider API key in your .env file or environment.")
+        sys.exit(1)
+
+    print("✓ Configuration validated successfully")
 
 
 @dataclass(frozen=True)
