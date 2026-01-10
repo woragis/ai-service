@@ -29,7 +29,8 @@ def validate_required_env_vars() -> None:
         print("  - MANUS_API_KEY")
         print("  - CIPHER_API_KEY")
         print("  - REPLICATE_API_KEY")
-        print("\nPlease set at least one provider API key in your .env file or environment.")
+        print(
+            "\nPlease set at least one provider API key in your .env file or environment.")
         sys.exit(1)
 
     print("✓ Configuration validated successfully")
@@ -50,7 +51,8 @@ class Settings:
 
     # Anthropic (Claude)
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+    ANTHROPIC_MODEL: str = os.getenv(
+        "ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
 
     # xAI (Grok) via OpenAI-compatible
     XAI_API_KEY: str = os.getenv("XAI_API_KEY", "")
@@ -64,15 +66,15 @@ class Settings:
 
     # Cipher (NoFilterGPT)
     CIPHER_API_KEY: str = os.getenv("CIPHER_API_KEY", "")
-    CIPHER_BASE_URL: str = os.getenv("CIPHER_BASE_URL", "https://api.nofiltergpt.com/v1/chat/completions")
+    CIPHER_BASE_URL: str = os.getenv(
+        "CIPHER_BASE_URL", "https://api.nofiltergpt.com/v1/chat/completions")
     CIPHER_MAX_TOKENS: int = int(os.getenv("CIPHER_MAX_TOKENS", "800"))
     CIPHER_TOP_P: float = float(os.getenv("CIPHER_TOP_P", "1.0"))
     # Images
-    CIPHER_IMAGE_URL: str = os.getenv("CIPHER_IMAGE_URL", "https://api.nofiltergpt.com/v1/images/generations")
+    CIPHER_IMAGE_URL: str = os.getenv(
+        "CIPHER_IMAGE_URL", "https://api.nofiltergpt.com/v1/images/generations")
     CIPHER_IMAGE_SIZE: str = os.getenv("CIPHER_IMAGE_SIZE", "1024x1024")
     CIPHER_IMAGE_N: int = int(os.getenv("CIPHER_IMAGE_N", "1"))
 
 
 settings = Settings()
-
-

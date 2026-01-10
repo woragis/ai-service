@@ -102,10 +102,13 @@ if settings.CORS_ENABLED:
 class ChatRequest(BaseModel):
     agent: str = Field(..., description="Agent persona name or 'auto'")
     input: str = Field(..., description="User input or question")
-    system: Optional[str] = Field(None, description="Optional additional system instruction")
-    temperature: Optional[float] = Field(None, description="Optional temperature override")
+    system: Optional[str] = Field(
+        None, description="Optional additional system instruction")
+    temperature: Optional[float] = Field(
+        None, description="Optional temperature override")
     model: Optional[str] = Field(None, description="Optional model override")
-    provider: Optional[Literal["openai", "anthropic", "xai", "manus", "cipher"]] = Field("openai", description="LLM provider")
+    provider: Optional[Literal["openai", "anthropic", "xai", "manus", "cipher"]] = Field(
+        "openai", description="LLM provider")
 
 
 class ChatResponse(BaseModel):
@@ -116,11 +119,13 @@ class ChatResponse(BaseModel):
 class ChatStreamRequest(ChatRequest):
     pass
 
+
 class ImageRequest(BaseModel):
     provider: Literal["cipher"] = Field("cipher", description="Image provider")
     prompt: str = Field(..., description="Image generation prompt")
     n: Optional[int] = Field(None, description="Number of images to generate")
-    size: Optional[str] = Field(None, description="Image size, e.g., 1024x1024")
+    size: Optional[str] = Field(
+        None, description="Image size, e.g., 1024x1024")
 
 
 class ImageData(BaseModel):
@@ -130,6 +135,7 @@ class ImageData(BaseModel):
 
 class ImageResponse(BaseModel):
     data: list[ImageData]
+
 
 @app.get("/v1/agents", response_model=list[str])
 def list_agents():
@@ -152,7 +158,7 @@ def get_budget_status():
     budget_tracker = get_budget_tracker()
     spending = budget_tracker.get_current_spending()
     limits = budget_tracker.get_budget_limits()
-    
+
     return {
         "spending": spending,
         "limits": limits,
@@ -305,7 +311,8 @@ def _apply_overrides(chain: Runnable, model_name: Optional[str], temperature: Op
         from langchain_openai import ChatOpenAI
         new_model = ChatOpenAI(
             model=model_name or os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            temperature=temperature if temperature is not None else float(os.getenv("OPENAI_TEMPERATURE", "0.3")),
+            temperature=temperature if temperature is not None else float(
+                os.getenv("OPENAI_TEMPERATURE", "0.3")),
             timeout=60,
         )
         # We cannot introspect the prompt here reliably; rebuild via agents registry is clearer
@@ -325,7 +332,7 @@ async def chat(req: ChatRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
-    
+
     # Validate agent name early (before processing)
     try:
         agent_names = get_agent_names()
@@ -342,8 +349,9 @@ async def chat(req: ChatRequest):
         raise
     except Exception as e:
         # If get_agent_names fails, still try to process but will fail later with 404
-        logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
-    
+        logger.warn("Failed to validate agent name",
+                    error=str(e), agent=req.agent)
+
     # Simple heuristic for auto agent selection
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
@@ -355,24 +363,25 @@ async def chat(req: ChatRequest):
             return "entrepreneur"
         return "startup"
 
-    agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
+    agent_name = req.agent if req.agent != "auto" else pick_agent_auto(
+        req.input)
 
     # Security checks on input
     # Check prompt injection
     injection_allowed, injection_error = check_prompt_injection(req.input)
     if not injection_allowed:
         raise HTTPException(status_code=400, detail=injection_error)
-    
+
     # Check content filter
     content_allowed, content_error = check_content_filter(req.input)
     if not content_allowed:
         raise HTTPException(status_code=400, detail=content_error)
-    
+
     # Check and mask PII in input if needed
     pii_allowed, pii_error, pii_counts = check_pii(req.input)
     if not pii_allowed:
         raise HTTPException(status_code=400, detail=pii_error)
-    
+
     # Mask PII in input if policy requires it
     input_text = req.input
     if pii_counts:
@@ -390,16 +399,17 @@ async def chat(req: ChatRequest):
         input_text = f"{req.system}\n\n{input_text}"
     if rag_context:
         input_text = f"{rag_context}\n\n{input_text}"
-    
+
     estimated_input_tokens = len(input_text) // 4  # Rough estimate
-    
+
     # Validate token limits before processing
     token_valid, token_error = validate_token_limits(estimated_input_tokens)
     if not token_valid:
         raise HTTPException(status_code=400, detail=token_error)
 
     # Select provider and model using routing policies
-    cost_mode = os.getenv("COST_MODE", "balanced")  # Can be overridden per request in future
+    # Can be overridden per request in future
+    cost_mode = os.getenv("COST_MODE", "balanced")
     selected_provider, selected_model, fallback_chain = select_provider_and_model(
         requested_provider=req.provider,
         requested_model=req.model,
@@ -408,14 +418,15 @@ async def chat(req: ChatRequest):
         cost_mode=cost_mode,
         enable_fallback=True,
     )
-    
+
     provider = selected_provider
     model = selected_model or req.model
-    
+
     # Check if provider is enabled
     if not is_provider_enabled(provider):
-        raise HTTPException(status_code=400, detail=f"Provider '{provider}' is disabled")
-    
+        raise HTTPException(
+            status_code=400, detail=f"Provider '{provider}' is disabled")
+
     # Check cache before processing
     cache_manager = get_cache_manager()
     cached_response = cache_manager.get(
@@ -425,11 +436,12 @@ async def chat(req: ChatRequest):
         model=model,
         endpoint="/v1/chat"
     )
-    
+
     if cached_response is not None:
-        logger.info("Cache hit", agent=agent_name, provider=provider, model=model)
+        logger.info("Cache hit", agent=agent_name,
+                    provider=provider, model=model)
         return ChatResponse(agent=agent_name, output=cached_response)
-    
+
     # Estimate cost and check budget before processing
     estimated_cost, budget_allowed, budget_error = estimate_and_check_cost(
         provider=provider,
@@ -437,7 +449,7 @@ async def chat(req: ChatRequest):
         input_tokens=estimated_input_tokens,
         output_tokens=0  # Will be updated after response
     )
-    
+
     if not budget_allowed:
         raise HTTPException(status_code=429, detail=budget_error)
 
@@ -445,7 +457,8 @@ async def chat(req: ChatRequest):
     if provider == "cipher":
         system_text = build_system_message(agent_name)
         if not system_text:
-            raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
+            raise HTTPException(
+                status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
         messages = [{"role": "system", "content": system_text}]
         if req.system:
@@ -468,13 +481,15 @@ async def chat(req: ChatRequest):
     async def _execute_chat(attempt_provider: str, attempt_model: Optional[str]):
         """Execute chat with a specific provider/model."""
         try:
-            model_obj = make_model(attempt_provider, attempt_model, req.temperature)
+            model_obj = make_model(
+                attempt_provider, attempt_model, req.temperature)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        
+
         chain = build_agent_with_model(agent_name, model_obj)
         if not chain:
-            raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
+            raise HTTPException(
+                status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
         # Optionally augment with extra system instruction by prepending a SystemMessage
         # Use masked input_text if PII was masked
@@ -482,12 +497,13 @@ async def chat(req: ChatRequest):
         if req.system:
             # Simple concatenation to include system guidance
             inputs = f"{req.system}\n\nUser: {input_text}"
-        
+
         # Add RAG context to input if available
         if rag_context:
             inputs = rag_context + "\n\nUser Query: " + inputs
 
-        logger.info("invoking chat chain", agent=agent_name, provider=attempt_provider, model=attempt_model, has_rag_context=bool(rag_context))
+        logger.info("invoking chat chain", agent=agent_name, provider=attempt_provider,
+                    model=attempt_model, has_rag_context=bool(rag_context))
         # The prompt template expects both 'agent_name' and 'input' variables
         result = await chain.ainvoke({
             "agent_name": agent_name.title() + " Agent",
@@ -497,7 +513,7 @@ async def chat(req: ChatRequest):
             return result.content  # AIMessage
         else:
             return str(result)
-    
+
     # Execute with fallback chain and resilience
     try:
         output_text = await execute_with_fallback(
@@ -508,53 +524,61 @@ async def chat(req: ChatRequest):
             endpoint="/v1/chat"
         )
     except Exception as e:
-        logger.error("Chat execution failed", error=str(e), provider=provider, fallback_chain=fallback_chain)
-        raise HTTPException(status_code=500, detail=f"Chat execution failed: {str(e)}")
+        logger.error("Chat execution failed", error=str(
+            e), provider=provider, fallback_chain=fallback_chain)
+        raise HTTPException(
+            status_code=500, detail=f"Chat execution failed: {str(e)}")
 
-    logger.info("chat completed", agent=agent_name, output_len=len(output_text))
-    
+    logger.info("chat completed", agent=agent_name,
+                output_len=len(output_text))
+
     # Quality checks
     # Validate length
     length_valid, length_error = validate_length(output_text, agent_name)
     if not length_valid:
         raise HTTPException(status_code=500, detail=length_error)
-    
+
     # Validate format
     format_valid, format_error, detected_format = validate_format(output_text)
     if not format_valid:
         raise HTTPException(status_code=500, detail=format_error)
-    
+
     # Validate quality (coherence and relevance)
-    quality_valid, quality_error, quality_scores = validate_quality(req.input, output_text, agent_name)
+    quality_valid, quality_error, quality_scores = validate_quality(
+        req.input, output_text, agent_name)
     if not quality_valid:
-        logger.warn("Quality check failed", scores=quality_scores, error=quality_error)
+        logger.warn("Quality check failed",
+                    scores=quality_scores, error=quality_error)
         # Don't block, just log warning for now (can be made configurable)
-    
+
     # Check toxicity
-    toxicity_allowed, toxicity_error, toxicity_score = check_toxicity(output_text)
+    toxicity_allowed, toxicity_error, toxicity_score = check_toxicity(
+        output_text)
     if not toxicity_allowed:
         raise HTTPException(status_code=500, detail=toxicity_error)
-    
+
     # Sanitize response
     sanitized_output = sanitize_response(output_text)
-    
+
     # Sanitize toxicity if needed
     if toxicity_score > 0:
         sanitized_output = sanitize_toxicity(sanitized_output)
-    
+
     # Check and mask PII in response if needed
-    response_pii_allowed, response_pii_error, response_pii_counts = check_pii(sanitized_output)
+    response_pii_allowed, response_pii_error, response_pii_counts = check_pii(
+        sanitized_output)
     if not response_pii_allowed:
         # If blocking is enabled, return error; otherwise mask
         raise HTTPException(status_code=500, detail=response_pii_error)
-    
+
     # Mask PII in response if policy requires it
     final_output = sanitized_output
     if response_pii_counts:
         final_output, _ = mask_pii(sanitized_output)
         if final_output != sanitized_output:
-            logger.info("PII masked in response", pii_counts=response_pii_counts)
-    
+            logger.info("PII masked in response",
+                        pii_counts=response_pii_counts)
+
     # Store in cache (use original input for cache key, but sanitized output for value)
     try:
         cache_manager.set(
@@ -567,11 +591,12 @@ async def chat(req: ChatRequest):
         )
     except Exception as e:
         logger.warn("Failed to store in cache", error=str(e))
-    
+
     # Estimate output tokens and final cost
     estimated_output_tokens = len(final_output) // 4  # Rough estimate
-    final_cost = estimate_request_cost(provider, model or "default", estimated_input_tokens, estimated_output_tokens)
-    
+    final_cost = estimate_request_cost(
+        provider, model or "default", estimated_input_tokens, estimated_output_tokens)
+
     # Track cost and tokens
     try:
         cost_tracker.record_request(
@@ -579,7 +604,8 @@ async def chat(req: ChatRequest):
             provider=provider,
             cost_usd=final_cost
         )
-        cost_tracker.record_api_call(provider=provider, model=model or "default")
+        cost_tracker.record_api_call(
+            provider=provider, model=model or "default")
         cost_tracker.record_tokens(
             provider=provider,
             model=model or "default",
@@ -588,7 +614,7 @@ async def chat(req: ChatRequest):
         )
     except Exception as e:
         logger.warn("Failed to record cost metrics", error=str(e))
-    
+
     return ChatResponse(agent=agent_name, output=final_output)
 
 
@@ -600,12 +626,12 @@ def healthz():
     """
     from app.health import check_health
     result = check_health()
-    
+
     # Determine HTTP status code
     status_code = 200
     if result["status"] == "unhealthy":
         status_code = 503
-    
+
     return JSONResponse(content=result, status_code=status_code)
 
 
@@ -613,7 +639,8 @@ def healthz():
 async def generate_images(req: ImageRequest):
     provider = (req.provider or "cipher").lower()
     if provider != "cipher":
-        raise HTTPException(status_code=400, detail="Only provider 'cipher' is supported for images currently")
+        raise HTTPException(
+            status_code=400, detail="Only provider 'cipher' is supported for images currently")
 
     prompt = req.prompt
     n = req.n if req.n is not None else settings.CIPHER_IMAGE_N
@@ -624,7 +651,8 @@ async def generate_images(req: ImageRequest):
     # Normalize to ImageData
     normalized = []
     for item in items:
-        normalized.append(ImageData(url=item.get("url"), b64_json=item.get("b64_json")))
+        normalized.append(ImageData(url=item.get("url"),
+                          b64_json=item.get("b64_json")))
     return ImageResponse(data=normalized)
 
 
@@ -638,7 +666,7 @@ async def chat_stream(req: ChatStreamRequest):
         has_system=bool(req.system),
         temperature=req.temperature,
     )
-    
+
     # Validate agent name early (before processing)
     try:
         agent_names = get_agent_names()
@@ -655,8 +683,9 @@ async def chat_stream(req: ChatStreamRequest):
         raise
     except Exception as e:
         # If get_agent_names fails, still try to process but will fail later with 404
-        logger.warn("Failed to validate agent name", error=str(e), agent=req.agent)
-    
+        logger.warn("Failed to validate agent name",
+                    error=str(e), agent=req.agent)
+
     # Select provider and model using routing policies
     cost_mode = os.getenv("COST_MODE", "balanced")
     selected_provider, selected_model, fallback_chain = select_provider_and_model(
@@ -667,13 +696,14 @@ async def chat_stream(req: ChatStreamRequest):
         cost_mode=cost_mode,
         enable_fallback=True,
     )
-    
+
     provider = selected_provider
     model = selected_model or req.model
-    
+
     # Check if provider is enabled
     if not is_provider_enabled(provider):
-        raise HTTPException(status_code=400, detail=f"Provider '{provider}' is disabled")
+        raise HTTPException(
+            status_code=400, detail=f"Provider '{provider}' is disabled")
 
     def pick_agent_auto(text: str) -> str:
         lowered = (text or "").lower()
@@ -685,23 +715,25 @@ async def chat_stream(req: ChatStreamRequest):
             return "entrepreneur"
         return "startup"
 
-    agent_name = req.agent if req.agent != "auto" else pick_agent_auto(req.input)
+    agent_name = req.agent if req.agent != "auto" else pick_agent_auto(
+        req.input)
 
     # Check if streaming is enabled
     from app.features import is_streaming_enabled
     if not is_streaming_enabled("/v1/chat/stream"):
-        raise HTTPException(status_code=400, detail="Streaming is disabled for this endpoint")
+        raise HTTPException(
+            status_code=400, detail="Streaming is disabled for this endpoint")
 
     # Get RAG context if enabled for this agent
     rag_context = None
     if is_rag_enabled(agent_name):
         rag_context = await get_rag_context(agent_name, req.input)
-    
+
     # Prepare input
     inputs = req.input
     if req.system:
         inputs = f"{req.system}\n\nUser: {req.input}"
-    
+
     # Add RAG context to input if available
     if rag_context:
         inputs = rag_context + "\n\nUser Query: " + inputs
@@ -735,16 +767,19 @@ async def chat_stream(req: ChatStreamRequest):
     async def _execute_stream(attempt_provider: str, attempt_model: Optional[str]):
         """Execute streaming chat with a specific provider/model."""
         try:
-            model_obj = make_model(attempt_provider, attempt_model, req.temperature)
+            model_obj = make_model(
+                attempt_provider, attempt_model, req.temperature)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-        
+
         chain = build_agent_with_model(agent_name, model_obj)
         if not chain:
-            raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
+            raise HTTPException(
+                status_code=404, detail=f"Unknown agent '{agent_name}'. Available: {', '.join(get_agent_names())}")
 
         async def event_gen():
-            logger.info("stream started", agent=agent_name, provider=attempt_provider, model=attempt_model, has_rag_context=bool(rag_context))
+            logger.info("stream started", agent=agent_name, provider=attempt_provider,
+                        model=attempt_model, has_rag_context=bool(rag_context))
             full_parts = []
             try:
                 # The prompt template expects both 'agent_name' and 'input' variables
@@ -766,24 +801,29 @@ async def chat_stream(req: ChatStreamRequest):
                 logger.exception("stream error", exc_info=True)
                 yield json.dumps({"error": str(e)}) + "\n"
             final_text = "".join(full_parts)
-            logger.info("stream completed", agent=agent_name, output_len=len(final_text))
+            logger.info("stream completed", agent=agent_name,
+                        output_len=len(final_text))
             yield json.dumps({"done": True, "output": final_text}) + "\n"
-        
+
         return event_gen()
-    
+
     # For streaming, we can't easily use fallback (streaming is stateful)
     # So we'll just try the primary provider
     try:
         event_gen = await _execute_stream(provider, model)
         return StreamingResponse(event_gen, media_type="application/x-ndjson")
     except Exception as e:
-        logger.error("Stream execution failed, trying fallback", error=str(e), provider=provider)
+        logger.error("Stream execution failed, trying fallback",
+                     error=str(e), provider=provider)
         # Try first fallback if available
         if fallback_chain:
             try:
                 event_gen = await _execute_stream(fallback_chain[0], model)
                 return StreamingResponse(event_gen, media_type="application/x-ndjson")
             except Exception as fallback_error:
-                logger.error("Fallback stream also failed", error=str(fallback_error))
-                raise HTTPException(status_code=500, detail=f"Stream execution failed: {str(fallback_error)}")
-        raise HTTPException(status_code=500, detail=f"Stream execution failed: {str(e)}")
+                logger.error("Fallback stream also failed",
+                             error=str(fallback_error))
+                raise HTTPException(
+                    status_code=500, detail=f"Stream execution failed: {str(fallback_error)}")
+        raise HTTPException(
+            status_code=500, detail=f"Stream execution failed: {str(e)}")
