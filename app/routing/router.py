@@ -263,12 +263,17 @@ async def execute_with_fallback(
                 exec_kwargs = dict(kwargs)  # Make a copy
                 exec_kwargs.pop('strategy', None)
                 exec_kwargs.pop('enable_retry', None)
+                
+                # Get retry strategy for this provider
+                retry_strategy = policy.retry_strategies.get(attempt_provider)
+                
                 return await execute_with_resilience(
                     execute_fn,
                     attempt_provider,
-                    strategy=policy.retry_strategies.get(attempt_provider),
+                    strategy=retry_strategy,
                     enable_retry=policy.enable_retry,
-                    *(model, *args),
+                    model,
+                    *args,
                     **exec_kwargs
                 )
             
