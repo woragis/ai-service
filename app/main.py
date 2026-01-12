@@ -63,7 +63,7 @@ if settings.CORS_ENABLED:
 
 
 class ChatRequest(BaseModel):
-    agent: Literal["economist", "strategist", "entrepreneur", "startup", "auto"] = Field(..., description="Agent persona or 'auto'")
+    agent: Literal["economist", "strategist", "entrepreneur", "startup", "cover_letter", "auto"] = Field(..., description="Agent persona or 'auto'")
     input: str = Field(..., description="User input or question")
     system: Optional[str] = Field(None, description="Optional additional system instruction")
     temperature: Optional[float] = Field(None, description="Optional temperature override")
