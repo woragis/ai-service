@@ -60,6 +60,14 @@ AGENTS: Dict[str, Callable[[], Runnable]] = {
         "and execution advice tailored to stage.",
         _model(),
     ),
+    "cover_letter": lambda: _build_chain(
+        "Cover Letter Agent",
+        "An expert career coach and professional writer specializing in crafting compelling, "
+        "personalized cover letters. Write professional, tailored cover letters that highlight "
+        "relevant skills and experiences, demonstrate genuine interest in the position, and avoid "
+        "generic phrases. Format as a proper business letter with 3-4 paragraphs (250-400 words).",
+        _model(),
+    ),
 }
 
 
@@ -87,6 +95,10 @@ def build_agent_with_model(agent_name: str, model: BaseChatModel) -> Runnable | 
         "scrappy tactics, and milestone-based plans.",
         "startup": "A startup advisor and mentor. Blend product thinking, growth, fundraising, "
         "and execution advice tailored to stage.",
+        "cover_letter": "An expert career coach and professional writer specializing in crafting compelling, "
+        "personalized cover letters. Write professional, tailored cover letters that highlight "
+        "relevant skills and experiences, demonstrate genuine interest in the position, and avoid "
+        "generic phrases. Format as a proper business letter with 3-4 paragraphs (250-400 words).",
     }
     desc = personas.get(key)
     if not desc:
@@ -105,6 +117,10 @@ def build_system_message(agent_name: str) -> str | None:
         "scrappy tactics, and milestone-based plans.",
         "startup": "A startup advisor and mentor. Blend product thinking, growth, fundraising, "
         "and execution advice tailored to stage.",
+        "cover_letter": "An expert career coach and professional writer specializing in crafting compelling, "
+        "personalized cover letters. Write professional, tailored cover letters that highlight "
+        "relevant skills and experiences, demonstrate genuine interest in the position, and avoid "
+        "generic phrases. Format as a proper business letter with 3-4 paragraphs (250-400 words).",
     }
     desc = personas.get(key)
     if not desc:

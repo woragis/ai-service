@@ -94,6 +94,16 @@ class ImageData(BaseModel):
 class ImageResponse(BaseModel):
     data: list[ImageData]
 
+class ContentGenerationRequest(BaseModel):
+    type: Literal["profile", "experience", "skills", "summary"] = Field(..., description="Type of content to generate")
+    jobDescription: str = Field(..., description="Job description for context")
+    userContext: Optional[dict] = Field(None, description="Additional user context")
+
+class ContentGenerationResponse(BaseModel):
+    content: str
+    tokens_used: int
+    model: str
+
 @app.get("/v1/agents", response_model=list[str])
 def list_agents():
     return get_agent_names()
@@ -205,6 +215,93 @@ def healthz():
         status_code = 503
     
     return JSONResponse(content=result, status_code=status_code)
+
+
+@app.post("/api/v1/content/generate", response_model=ContentGenerationResponse)
+async def generate_content(req: ContentGenerationRequest):
+    """
+    Generate resume content based on job description and type.
+    This endpoint is used by the resume-worker service.
+    """
+    logger.info(
+        "content generation request",
+        type=req.type,
+        job_description_length=len(req.jobDescription),
+    )
+    
+    # Build the prompt based on content type
+    prompts = {
+        "profile": "Generate a professional summary/profile section for a resume. "
+                  "Make it compelling, concise (3-4 lines), and tailored to the job description. "
+                  "Focus on relevant skills and experience. Format as plain text.",
+        "experience": "Generate professional experience descriptions for a resume. "
+                     "Make them achievement-oriented with metrics where possible. "
+                     "Tailor to the job description requirements. Format as bullet points.",
+        "skills": "Generate a technical skills section for a resume. "
+                 "Organize by category (e.g., Languages, Frameworks, Tools). "
+                 "Prioritize skills relevant to the job description. Format as categorized list.",
+        "summary": "Generate an executive summary for a resume. "
+                  "Make it impactful, highlighting key qualifications and career achievements. "
+                  "Tailor to the job description. Keep it 2-3 sentences."
+    }
+    
+    system_prompt = prompts.get(req.type, prompts["profile"])
+    
+    # Build user input with job description and context
+    user_input_parts = [f"Job Description:\n{req.jobDescription}"]
+    
+    if req.userContext:
+        if req.userContext.get("experience"):
+            user_input_parts.append(f"\nCurrent Experience:\n{req.userContext['experience']}")
+        if req.userContext.get("skills"):
+            skills_list = ", ".join(req.userContext["skills"])
+            user_input_parts.append(f"\nCurrent Skills: {skills_list}")
+        if req.userContext.get("projects"):
+            user_input_parts.append(f"\nProjects:\n{req.userContext['projects']}")
+    
+    user_input = "\n".join(user_input_parts)
+    
+    # Use the "auto" agent or a generic approach with OpenAI
+    try:
+        from langchain_openai import ChatOpenAI
+        model = ChatOpenAI(
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            temperature=0.7,  # Slightly higher for creative content
+            timeout=60,
+        )
+        
+        from langchain_core.prompts import ChatPromptTemplate
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("human", user_input),
+        ])
+        
+        chain = prompt | model
+        result = await chain.ainvoke({})
+        
+        content = result.content if hasattr(result, "content") else str(result)
+        
+        # Extract token usage if available
+        tokens_used = 0
+        if hasattr(result, "response_metadata"):
+            usage = result.response_metadata.get("token_usage", {})
+            tokens_used = usage.get("total_tokens", 0)
+        
+        logger.info(
+            "content generation completed",
+            type=req.type,
+            content_length=len(content),
+            tokens_used=tokens_used,
+        )
+        
+        return ContentGenerationResponse(
+            content=content,
+            tokens_used=tokens_used,
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        )
+    except Exception as e:
+        logger.error("content generation failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
 
 
 @app.post("/v1/images", response_model=ImageResponse)
