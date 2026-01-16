@@ -131,5 +131,3 @@ def build_system_message(agent_name: str) -> str | None:
         + " Be concise, structured, and provide actionable insights. "
           "When assumptions are needed, state them explicitly."
     )
-
-
